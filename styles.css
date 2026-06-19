@@ -1,0 +1,405 @@
+/*
+ * Clipify — native-feeling styles for the choice + trim modals.
+ * Everything keys off Discord theme variables so it adapts to light/dark and
+ * custom themes automatically.
+ *
+ * NOTE: classNameFactory prefixes EVERY class (including modifier keys), so a
+ * `cl("x", { "x-active": true })` yields `vc-clipify-x vc-clipify-x-active`.
+ * Modifier selectors below are therefore standalone (e.g. `.vc-clipify-x-active`).
+ */
+
+/* ----------------------------- Choice modal ----------------------------- */
+
+.vc-clipify-choice {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 4px 0 8px;
+}
+
+.vc-clipify-choice-preview {
+    position: relative;
+    width: 100%;
+    max-height: 320px;
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--background-tertiary);
+    box-shadow: var(--elevation-low, 0 1px 0 rgba(0, 0, 0, 0.2));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.vc-clipify-choice-preview video {
+    width: 100%;
+    max-height: 320px;
+    object-fit: contain;
+    display: block;
+}
+
+.vc-clipify-choice-badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(4px);
+}
+
+.vc-clipify-choice-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.vc-clipify-choice-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--header-primary);
+    word-break: break-all;
+}
+
+.vc-clipify-choice-sub {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.vc-clipify-choice-question {
+    font-size: 15px;
+    color: var(--text-normal);
+    text-align: center;
+    margin-top: 2px;
+}
+
+/* ----------------------------- Trim editor ------------------------------ */
+
+.vc-clipify-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 4px 0 8px;
+}
+
+.vc-clipify-stage {
+    position: relative;
+    width: 100%;
+    background: #000;
+    border-radius: 10px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 220px;
+    max-height: 46vh;
+}
+
+.vc-clipify-stage video {
+    width: 100%;
+    max-height: 46vh;
+    object-fit: contain;
+    display: block;
+    cursor: pointer;
+}
+
+/* Timecode readouts row */
+.vc-clipify-readouts {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+}
+
+.vc-clipify-readout {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--background-modifier-accent);
+    background: var(--background-secondary);
+}
+
+.vc-clipify-readout-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+
+.vc-clipify-readout-value {
+    font-size: 15px;
+    font-variant-numeric: tabular-nums;
+    font-family: var(--font-code, monospace);
+    color: var(--header-primary);
+}
+
+/* Modifier class is standalone (see header note). */
+.vc-clipify-readout-sel {
+    border-color: var(--brand-experiment, var(--brand-500, #5865f2));
+}
+
+.vc-clipify-readout-sel .vc-clipify-readout-value {
+    color: var(--brand-experiment, var(--brand-500, #5865f2));
+}
+
+/* Options bar: mode segmented control + FPS */
+.vc-clipify-optbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 34px;
+}
+
+.vc-clipify-modes {
+    display: inline-flex;
+    gap: 2px;
+    padding: 3px;
+    border-radius: 8px;
+    background: var(--background-tertiary);
+}
+
+.vc-clipify-mode {
+    border: none;
+    padding: 5px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    background: transparent;
+    cursor: pointer;
+    transition: background-color 120ms ease, color 120ms ease;
+}
+
+.vc-clipify-mode:hover {
+    color: var(--interactive-hover);
+}
+
+.vc-clipify-mode-active {
+    color: #fff;
+    background: var(--brand-experiment, var(--brand-500, #5865f2));
+    box-shadow: var(--elevation-low, 0 1px 2px rgba(0, 0, 0, 0.3));
+}
+
+.vc-clipify-fps {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+}
+
+.vc-clipify-fps input {
+    width: 56px;
+    padding: 5px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--background-modifier-accent);
+    background: var(--input-background, var(--background-tertiary));
+    color: var(--text-normal);
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Timeline */
+.vc-clipify-timeline {
+    position: relative;
+    height: 40px;
+    margin: 2px 9px;
+    cursor: pointer;
+    touch-action: none;
+}
+
+.vc-clipify-timeline-track {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 10px;
+    transform: translateY(-50%);
+    border-radius: 5px;
+    /* Matches Discord's native slider track tone (the muted "inactive control"
+       gray) so the unselected portions read as a filled bar, like the volume
+       slider, and adapt to any theme. */
+    background: var(--interactive-muted, #4e5058);
+    overflow: hidden;
+}
+
+.vc-clipify-timeline-selection {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    background: var(--brand-experiment, var(--brand-500, #5865f2));
+}
+
+.vc-clipify-timeline-playhead {
+    position: absolute;
+    top: 3px;
+    bottom: 3px;
+    width: 2px;
+    border-radius: 1px;
+    background: var(--white-500, #fff);
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45);
+    pointer-events: none;
+}
+
+.vc-clipify-timeline-handle {
+    position: absolute;
+    top: 50%;
+    width: 12px;
+    height: 26px;
+    transform: translate(-50%, -50%);
+    border-radius: 4px;
+    background: var(--brand-experiment, var(--brand-500, #5865f2));
+    border: 2px solid var(--white-500, #fff);
+    box-shadow: var(--elevation-medium, 0 2px 6px rgba(0, 0, 0, 0.4));
+    cursor: ew-resize;
+    touch-action: none;
+    transition: transform 80ms ease;
+}
+
+.vc-clipify-timeline-handle:hover,
+.vc-clipify-handle-active {
+    transform: translate(-50%, -50%) scale(1.14);
+}
+
+/* Transport controls (centered group) */
+.vc-clipify-transport {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.vc-clipify-iconbtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border: none;
+    border-radius: 8px;
+    color: var(--interactive-normal);
+    background: var(--background-secondary);
+    cursor: pointer;
+    transition: background-color 120ms ease, color 120ms ease, transform 80ms ease;
+}
+
+.vc-clipify-iconbtn:hover {
+    background: var(--background-modifier-hover);
+    color: var(--interactive-hover);
+}
+
+.vc-clipify-iconbtn:active {
+    transform: scale(0.94);
+}
+
+.vc-clipify-iconbtn-primary {
+    background: var(--brand-experiment, var(--brand-500, #5865f2));
+    color: #fff;
+}
+
+.vc-clipify-iconbtn-primary:hover {
+    background: var(--brand-experiment-560, var(--brand-560, #4752c4));
+    color: #fff;
+}
+
+.vc-clipify-iconbtn-sm {
+    width: 30px;
+    height: 30px;
+    background: transparent;
+}
+
+/* In/out setters: each "◂ Set start ▸" reads as one grouped control */
+.vc-clipify-setbtns {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+}
+
+.vc-clipify-setgroup {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 3px;
+    border-radius: 9px;
+    background: var(--background-tertiary);
+}
+
+.vc-clipify-setbtn {
+    border: none;
+    min-width: 96px;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-normal);
+    background: var(--background-secondary);
+    cursor: pointer;
+    transition: background-color 120ms ease;
+}
+
+.vc-clipify-setbtn:hover {
+    background: var(--background-modifier-hover);
+}
+
+.vc-clipify-hint {
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.vc-clipify-setgroup .vc-clipify-iconbtn-sm:hover {
+    background: var(--background-modifier-hover);
+}
+
+/* Export overlay */
+.vc-clipify-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    background: rgba(0, 0, 0, 0.72);
+    backdrop-filter: blur(2px);
+    color: #fff;
+    z-index: 2;
+}
+
+.vc-clipify-overlay-label {
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.vc-clipify-overlay-bar {
+    width: 60%;
+    max-width: 320px;
+    height: 8px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.18);
+    overflow: hidden;
+}
+
+.vc-clipify-overlay-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: var(--brand-experiment, var(--brand-500, #5865f2));
+    transition: width 120ms linear;
+}
+
+.vc-clipify-overlay-hint {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.7);
+    max-width: 80%;
+    text-align: center;
+}
