@@ -156,3 +156,79 @@ export async function trimWithFFmpeg(
         ff.deleteFile(output).catch(() => undefined);
     }
 }
+
+/* ========================================================================== */
+/*                               Audio trim                                   */
+/* ========================================================================== */
+
+export interface FfmpegAudioTrimOptions {
+    /** "precise" re-encodes to AAC/m4a; "lossless" stream-copies the source. */
+    mode: TrimMode;
+    onProgress?: (fraction: number) => void;
+    signal?: { cancelled: boolean; };
+}
+
+/**
+ * Trim `[startTime, endTime]` out of an audio `file` with ffmpeg.wasm.
+ *
+ * - **lossless**: `-c copy` → instant, keeps the original codec/container.
+ * - **precise**: re-encodes with FFmpeg's built-in AAC encoder (always
+ *   compiled in, unlike libmp3lame) → `.m4a`.
+ */
+export async function trimAudioWithFFmpeg(
+    file: File,
+    startTime: number,
+    endTime: number,
+    options: FfmpegAudioTrimOptions
+): Promise<File> {
+    const ff = await loadFFmpeg();
+    const id = counter++;
+    const ext = extOf(file.name);
+    const input = `clipify_ain_${id}${ext}`;
+    const duration = Math.max(0.001, endTime - startTime);
+
+    const onProgress = ({ progress }: { progress: number; }) => options.onProgress?.(clamp(progress, 0, 1));
+    ff.on("progress", onProgress);
+
+    const lossless = options.mode === "lossless";
+    const output = lossless ? `clipify_aout_${id}${ext}` : `clipify_aout_${id}.m4a`;
+    const args = lossless
+        ? [
+            "-ss", String(startTime),
+            "-i", input,
+            "-t", String(duration),
+            "-c", "copy",
+            "-avoid_negative_ts", "make_zero",
+            output
+        ]
+        : [
+            "-ss", String(startTime),
+            "-i", input,
+            "-t", String(duration),
+            "-vn",
+            "-c:a", "aac",
+            "-b:a", "192k",
+            "-movflags", "+faststart",
+            output
+        ];
+
+    try {
+        await ff.writeFile(input, new Uint8Array(await file.arrayBuffer()));
+
+        const exitCode = await ff.exec(args);
+        if (options.signal?.cancelled) throw new Error("Export cancelled.");
+        if (exitCode !== 0) throw new Error("FFmpeg failed to trim the audio.");
+
+        const data = await ff.readFile(output);
+        if (typeof data === "string") throw new Error("Could not read the trimmed audio.");
+
+        options.onProgress?.(1);
+        const outType = lossless ? (file.type || "audio/mpeg") : "audio/mp4";
+        const outName = `${baseName(file.name)}${lossless ? ext : ".m4a"}`;
+        return new File([new Uint8Array(data as Uint8Array)], outName, { type: outType });
+    } finally {
+        ff.off("progress", onProgress);
+        ff.deleteFile(input).catch(() => undefined);
+        ff.deleteFile(output).catch(() => undefined);
+    }
+}

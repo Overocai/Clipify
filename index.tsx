@@ -11,10 +11,12 @@ import definePlugin, { OptionType } from "@utils/types";
 import type { Channel } from "@vencord/discord-types";
 import { ChannelStore, DraftType, FluxDispatcher, openModal, SelectedChannelStore, showToast, Toasts, UploadHandler } from "@webpack/common";
 
+import { AudioEditorModal } from "./AudioEditorModal";
 import { ChoiceModal } from "./ChoiceModal";
 import { TrimMode } from "./ffmpeg";
+import { ImageEditorModal } from "./ImageEditorModal";
 import { TrimEditorModal } from "./TrimEditorModal";
-import { Engine, ExportQuality, extractFiles, isVideoFile, logger } from "./utils";
+import { Engine, ExportQuality, extractFiles, logger, MediaKind, mediaKindOf } from "./utils";
 
 /* ========================================================================== */
 /*                                  Settings                                  */
@@ -23,7 +25,17 @@ import { Engine, ExportQuality, extractFiles, isVideoFile, logger } from "./util
 const settings = definePluginSettings({
     interceptUploads: {
         type: OptionType.BOOLEAN,
-        description: "Intercept video uploads and ask before sending.",
+        description: "Intercept media uploads and ask before sending.",
+        default: true
+    },
+    editAudio: {
+        type: OptionType.BOOLEAN,
+        description: "Also intercept audio uploads (trim before sending).",
+        default: true
+    },
+    editImages: {
+        type: OptionType.BOOLEAN,
+        description: "Also intercept image uploads (resize / crop / censor before sending).",
         default: true
     },
     engine: {
@@ -101,19 +113,20 @@ function reAddFiles(files: File[], ctx: UploadContext): void {
     }
 }
 
-/** Entry point: show the choice modal for the pending video(s). */
-function startFlow(ctx: UploadContext, videos: File[], others: File[]): void {
+/** Entry point: show the choice modal for the pending media file. */
+function startFlow(ctx: UploadContext, target: File, kind: MediaKind, others: File[]): void {
     openModal(modalProps => (
         <ChoiceModal
             modalProps={modalProps}
-            file={videos[0]}
-            videoCount={videos.length}
-            onTrim={() => {
+            file={target}
+            kind={kind}
+            count={1 + others.length}
+            onEdit={() => {
                 modalProps.onClose();
-                openTrimEditor(ctx, videos, others);
+                openEditor(ctx, target, kind, others);
             }}
             onSendOriginal={() => {
-                reAddFiles([...videos, ...others], ctx);
+                reAddFiles([target, ...others], ctx);
                 modalProps.onClose();
             }}
             onCancel={() => modalProps.onClose()}
@@ -121,22 +134,43 @@ function startFlow(ctx: UploadContext, videos: File[], others: File[]): void {
     ));
 }
 
-function openTrimEditor(ctx: UploadContext, videos: File[], others: File[]): void {
-    openModal(modalProps => (
-        <TrimEditorModal
-            modalProps={modalProps}
-            file={videos[0]}
-            defaultFps={Number(settings.store.frameRate) || 30}
-            quality={settings.store.exportQuality as ExportQuality}
-            engine={settings.store.engine as Engine}
-            defaultMode={settings.store.trimMode as TrimMode}
-            onComplete={trimmed => {
-                // Only the first video is trimmed; any further videos in the
-                // same drop, plus non-video files, pass through untouched.
-                reAddFiles([trimmed, ...videos.slice(1), ...others], ctx);
-            }}
-        />
-    ));
+/** Open the editor that matches the media kind; the rest of the drop passes through. */
+function openEditor(ctx: UploadContext, target: File, kind: MediaKind, others: File[]): void {
+    // Only the chosen file is edited; everything else in the same drop is
+    // forwarded untouched once the user finishes.
+    const onComplete = (edited: File) => reAddFiles([edited, ...others], ctx);
+
+    if (kind === "video") {
+        openModal(modalProps => (
+            <TrimEditorModal
+                modalProps={modalProps}
+                file={target}
+                defaultFps={Number(settings.store.frameRate) || 30}
+                quality={settings.store.exportQuality as ExportQuality}
+                engine={settings.store.engine as Engine}
+                defaultMode={settings.store.trimMode as TrimMode}
+                onComplete={onComplete}
+            />
+        ));
+    } else if (kind === "audio") {
+        openModal(modalProps => (
+            <AudioEditorModal
+                modalProps={modalProps}
+                file={target}
+                engine={settings.store.engine as Engine}
+                defaultMode={settings.store.trimMode as TrimMode}
+                onComplete={onComplete}
+            />
+        ));
+    } else {
+        openModal(modalProps => (
+            <ImageEditorModal
+                modalProps={modalProps}
+                file={target}
+                onComplete={onComplete}
+            />
+        ));
+    }
 }
 
 /* ========================================================================== */
@@ -172,12 +206,22 @@ function handleAction(action: unknown): void {
     ];
     const unique = Array.from(new Set(allFiles));
 
-    const pendingVideos = unique.filter(f => isVideoFile(f) && f.size > 0 && !approvedFiles.has(f));
-    if (pendingVideos.length === 0) return; // nothing to do — also lets our re-adds pass
+    // Per-kind opt-in. Video is always handled; audio/images are gated by settings.
+    const kindEnabled = (k: MediaKind): boolean =>
+        k === "video" ? true : k === "audio" ? settings.store.editAudio : settings.store.editImages;
 
-    const others = unique.filter(f => !pendingVideos.includes(f));
+    // The first un-vetted, enabled media file is the one we edit.
+    const target = unique.find(f => {
+        if (f.size <= 0 || approvedFiles.has(f)) return false;
+        const k = mediaKindOf(f);
+        return k != null && kindEnabled(k);
+    });
+    if (!target) return; // nothing to do — also lets our re-adds pass
 
-    // Neutralise the original action so the unedited video never lands in the
+    const kind = mediaKindOf(target)!;
+    const others = unique.filter(f => f !== target);
+
+    // Neutralise the original action so the unedited file never lands in the
     // composer; we re-add files ourselves after the user decides.
     payload.files = [];
     payload.uploads = [];
@@ -192,7 +236,7 @@ function handleAction(action: unknown): void {
     // Defer opening the modal: we're running inside a Flux dispatch right now,
     // and openModal dispatches too — doing it synchronously would throw
     // "Cannot dispatch in the middle of a dispatch".
-    setTimeout(() => startFlow({ channelId, draftType }, pendingVideos, others), 0);
+    setTimeout(() => startFlow({ channelId, draftType }, target, kind, others), 0);
 }
 
 /* ========================================================================== */
@@ -201,7 +245,7 @@ function handleAction(action: unknown): void {
 
 export default definePlugin({
     name: "Clipify",
-    description: "Asks whether you want to trim a video before sending and opens a frame-accurate trim editor integrated into Discord.",
+    description: "Edit media before sending: trim videos frame-accurately, cut audio, and resize/crop/censor images — all inside Discord.",
     authors: [{ name: "overocai", id: 1288832011452153910n }],
     tags: ["Media"],
     settings,

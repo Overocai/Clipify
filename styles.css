@@ -30,11 +30,25 @@
     justify-content: center;
 }
 
-.vc-clipify-choice-preview video {
+.vc-clipify-choice-preview video,
+.vc-clipify-choice-preview img {
     width: 100%;
     max-height: 320px;
     object-fit: contain;
     display: block;
+}
+
+.vc-clipify-choice-audio {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 28px 16px 20px;
+    color: var(--brand-experiment, var(--brand-500, #5865f2));
+}
+
+.vc-clipify-choice-audio audio {
+    width: min(420px, 90%);
 }
 
 .vc-clipify-choice-badge {
@@ -402,4 +416,252 @@
     color: rgba(255, 255, 255, 0.7);
     max-width: 80%;
     text-align: center;
+}
+
+/* ----------------------------- Audio editor ----------------------------- */
+
+.vc-clipify-audio-stage {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 28px 16px;
+    border-radius: 10px;
+    background: var(--background-tertiary);
+    min-height: 140px;
+    justify-content: center;
+}
+
+.vc-clipify-audio-play {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 72px;
+    height: 72px;
+    border: none;
+    border-radius: 50%;
+    color: #fff;
+    background: var(--brand-experiment, var(--brand-500, #5865f2));
+    cursor: pointer;
+    box-shadow: var(--elevation-medium, 0 4px 12px rgba(0, 0, 0, 0.4));
+    transition: transform 80ms ease, background-color 120ms ease;
+}
+
+.vc-clipify-audio-play:hover {
+    background: var(--brand-experiment-560, var(--brand-560, #4752c4));
+}
+
+.vc-clipify-audio-play:active {
+    transform: scale(0.94);
+}
+
+.vc-clipify-audio-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 90%;
+    color: var(--text-muted);
+}
+
+.vc-clipify-audio-icon {
+    display: inline-flex;
+    color: var(--brand-experiment, var(--brand-500, #5865f2));
+}
+
+.vc-clipify-audio-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--header-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ----------------------------- Image editor ----------------------------- */
+
+.vc-clipify-tools {
+    display: inline-flex;
+    align-self: center;
+    gap: 2px;
+    padding: 3px;
+    border-radius: 9px;
+    background: var(--background-tertiary);
+}
+
+.vc-clipify-tool {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: none;
+    padding: 6px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    background: transparent;
+    cursor: pointer;
+    transition: background-color 120ms ease, color 120ms ease;
+}
+
+.vc-clipify-tool:hover {
+    color: var(--interactive-hover);
+}
+
+.vc-clipify-tool-active {
+    color: #fff;
+    background: var(--brand-experiment, var(--brand-500, #5865f2));
+    box-shadow: var(--elevation-low, 0 1px 2px rgba(0, 0, 0, 0.3));
+}
+
+.vc-clipify-img-stage {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    background: #000;
+    border-radius: 10px;
+    overflow: hidden;
+    min-height: 220px;
+    max-height: 50vh;
+}
+
+.vc-clipify-img-canvas-wrap {
+    position: relative;
+    display: inline-block;
+    overflow: hidden;
+    line-height: 0;
+    max-width: 100%;
+}
+
+.vc-clipify-img-canvas {
+    display: block;
+    max-width: 100%;
+    max-height: calc(50vh - 16px);
+    width: auto;
+    height: auto;
+}
+
+.vc-clipify-img-overlay {
+    position: absolute;
+    inset: 0;
+    touch-action: none;
+}
+
+.vc-clipify-img-overlay-draw {
+    cursor: crosshair;
+}
+
+/* Crop selection — the box-shadow darkens everything outside it. */
+.vc-clipify-crop-rect {
+    position: absolute;
+    border: 2px solid var(--brand-experiment, var(--brand-500, #5865f2));
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55);
+    box-sizing: border-box;
+    pointer-events: none;
+}
+
+.vc-clipify-region-rect {
+    position: absolute;
+    border: 2px dashed var(--brand-experiment, var(--brand-500, #5865f2));
+    background: rgba(88, 101, 242, 0.18);
+    box-sizing: border-box;
+    /* Don't block drags on the overlay; only the delete button is interactive. */
+    pointer-events: none;
+}
+
+.vc-clipify-rect-live {
+    pointer-events: none;
+    opacity: 0.85;
+}
+
+.vc-clipify-region-del {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border: none;
+    border-radius: 50%;
+    color: #fff;
+    background: var(--status-danger, #ed4245);
+    cursor: pointer;
+    box-shadow: var(--elevation-low, 0 1px 3px rgba(0, 0, 0, 0.4));
+    /* Re-enable interaction (the parent region is pointer-events: none). */
+    pointer-events: auto;
+}
+
+.vc-clipify-region-del:hover {
+    filter: brightness(1.1);
+}
+
+.vc-clipify-img-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    min-height: 34px;
+}
+
+.vc-clipify-img-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.vc-clipify-img-check input {
+    accent-color: var(--brand-experiment, var(--brand-500, #5865f2));
+}
+
+.vc-clipify-slider {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+}
+
+.vc-clipify-slider input[type="range"] {
+    width: 160px;
+    accent-color: var(--brand-experiment, var(--brand-500, #5865f2));
+    cursor: pointer;
+}
+
+.vc-clipify-slider-value {
+    min-width: 26px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    color: var(--header-primary);
+}
+
+.vc-clipify-img-hint {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+/* Disabled controls (Undo / Clear all / Reset crop with nothing to do). */
+.vc-clipify-setbtn:disabled,
+.vc-clipify-iconbtn:disabled {
+    opacity: 0.4;
+    cursor: default;
+    pointer-events: none;
+}
+
+.vc-clipify-img-info {
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
 }

@@ -17,6 +17,27 @@ const VIDEO_EXTENSIONS: readonly string[] = [
     "mp4", "webm", "mov", "mkv", "avi", "m4v", "mpg", "mpeg", "wmv", "flv", "ts", "3gp", "ogv"
 ];
 
+/** Extensions we treat as trimmable audio. */
+const AUDIO_EXTENSIONS: readonly string[] = [
+    "mp3", "wav", "ogg", "oga", "m4a", "aac", "flac", "opus", "weba", "wma", "aiff", "aif"
+];
+
+/**
+ * Extensions we treat as an editable image. `gif` is deliberately excluded:
+ * canvas editing would flatten it to a single frame and silently kill the
+ * animation, so animated GIFs are left to upload untouched.
+ */
+const IMAGE_EXTENSIONS: readonly string[] = [
+    "png", "jpg", "jpeg", "webp", "bmp", "avif"
+];
+
+/** The kinds of media Clipify can intercept and edit. */
+export type MediaKind = "video" | "audio" | "image";
+
+function extOf(name: string): string {
+    return name.split(".").pop()?.toLowerCase() ?? "";
+}
+
 /**
  * Whether a {@link File} should be treated as a trimmable video.
  * Prefers the MIME type, falling back to the file extension because some
@@ -24,8 +45,29 @@ const VIDEO_EXTENSIONS: readonly string[] = [
  */
 export function isVideoFile(file: File): boolean {
     if (file.type.startsWith("video/")) return true;
-    const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
-    return VIDEO_EXTENSIONS.includes(ext);
+    return VIDEO_EXTENSIONS.includes(extOf(file.name));
+}
+
+/** Whether a {@link File} should be treated as a trimmable audio clip. */
+export function isAudioFile(file: File): boolean {
+    if (file.type.startsWith("audio/")) return true;
+    return AUDIO_EXTENSIONS.includes(extOf(file.name));
+}
+
+/** Whether a {@link File} should be treated as an editable image. */
+export function isImageFile(file: File): boolean {
+    // `image/gif` is excluded to preserve animation (see IMAGE_EXTENSIONS).
+    if (file.type === "image/gif" || extOf(file.name) === "gif") return false;
+    if (file.type.startsWith("image/")) return true;
+    return IMAGE_EXTENSIONS.includes(extOf(file.name));
+}
+
+/** Classify a file into the media kind Clipify handles, or `null` if unsupported. */
+export function mediaKindOf(file: File): MediaKind | null {
+    if (isVideoFile(file)) return "video";
+    if (isAudioFile(file)) return "audio";
+    if (isImageFile(file)) return "image";
+    return null;
 }
 
 /**
@@ -256,5 +298,79 @@ export async function exportTrimmedVideo(
         return new File([blob], `${baseName(file.name)}.webm`, { type });
     } finally {
         cleanup();
+    }
+}
+
+/* ========================================================================== */
+/*                          Web Audio trim (offline)                          */
+/* ========================================================================== */
+
+/** Encode an {@link AudioBuffer} slice as a 16-bit PCM WAV `Blob`. */
+function encodeWav(buffer: AudioBuffer, startSample: number, endSample: number): Blob {
+    const channels = buffer.numberOfChannels;
+    const frames = Math.max(0, endSample - startSample);
+    const { sampleRate } = buffer;
+    const bytesPerSample = 2;
+    const blockAlign = channels * bytesPerSample;
+    const dataSize = frames * blockAlign;
+
+    const arrayBuffer = new ArrayBuffer(44 + dataSize);
+    const view = new DataView(arrayBuffer);
+
+    const writeStr = (offset: number, str: string) => {
+        for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+    };
+
+    // RIFF / WAVE header
+    writeStr(0, "RIFF");
+    view.setUint32(4, 36 + dataSize, true);
+    writeStr(8, "WAVE");
+    writeStr(12, "fmt ");
+    view.setUint32(16, 16, true); // fmt chunk size
+    view.setUint16(20, 1, true); // PCM
+    view.setUint16(22, channels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * blockAlign, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, 8 * bytesPerSample, true);
+    writeStr(36, "data");
+    view.setUint32(40, dataSize, true);
+
+    // Interleave channels and clamp float samples to 16-bit PCM.
+    const chans: Float32Array[] = [];
+    for (let c = 0; c < channels; c++) chans.push(buffer.getChannelData(c));
+
+    let offset = 44;
+    for (let i = startSample; i < endSample; i++) {
+        for (let c = 0; c < channels; c++) {
+            const s = clamp(chans[c][i] ?? 0, -1, 1);
+            view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+            offset += 2;
+        }
+    }
+
+    return new Blob([arrayBuffer], { type: "audio/wav" });
+}
+
+/**
+ * Trim `[startTime, endTime]` out of an audio `file` entirely offline, using
+ * the Web Audio API. Decodes the source, slices the samples and re-encodes to
+ * a lossless 16-bit `.wav`. No network and no ffmpeg required — used as the
+ * MediaRecorder-engine path and as a fallback when ffmpeg is unavailable.
+ */
+export async function trimAudioWebAudio(file: File, startTime: number, endTime: number): Promise<File> {
+    const AC: typeof AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+    const ctx = new AC();
+    try {
+        const decoded = await ctx.decodeAudioData(await file.arrayBuffer());
+        const rate = decoded.sampleRate;
+        const startSample = clamp(Math.floor(startTime * rate), 0, decoded.length);
+        const endSample = clamp(Math.ceil(endTime * rate), startSample, decoded.length);
+        if (endSample <= startSample) throw new Error("Selection is too short to trim.");
+
+        const blob = encodeWav(decoded, startSample, endSample);
+        return new File([blob], `${baseName(file.name)}.wav`, { type: "audio/wav" });
+    } finally {
+        ctx.close().catch(() => { });
     }
 }
