@@ -127,11 +127,22 @@
     max-height: 46vh;
 }
 
+/* Wrapper hugs the video content (no letterbox) so the crop overlay maps 1:1. */
+.vc-clipify-vid-wrap {
+    position: relative;
+    display: inline-block;
+    overflow: hidden;
+    line-height: 0;
+    max-width: 100%;
+}
+
 .vc-clipify-stage video {
-    width: 100%;
-    max-height: 46vh;
-    object-fit: contain;
     display: block;
+    max-width: 100%;
+    max-height: 46vh;
+    width: auto;
+    height: auto;
+    object-fit: contain;
     cursor: pointer;
 }
 

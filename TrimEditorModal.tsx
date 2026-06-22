@@ -33,6 +33,15 @@ export interface TrimEditorModalProps {
 const SPEEDS = [0.5, 1, 2] as const;
 const QUALITIES: ReadonlyArray<[ExportQuality, string]> = [["high", "High"], ["medium", "Medium"], ["low", "Low"]];
 
+/** A crop rectangle in source-video pixels. */
+interface Box { x: number; y: number; w: number; h: number; }
+
+function normBox(ax: number, ay: number, bx: number, by: number, maxW: number, maxH: number): Box {
+    const x = clamp(Math.min(ax, bx), 0, maxW);
+    const y = clamp(Math.min(ay, by), 0, maxH);
+    return { x, y, w: clamp(Math.max(ax, bx), 0, maxW) - x, h: clamp(Math.max(ay, by), 0, maxH) - y };
+}
+
 /* ----------------------------- Timeline --------------------------------- */
 
 type DragKind = "start" | "end" | "scrub";
@@ -162,10 +171,24 @@ function TrimEditorInner({ modalProps, file, defaultFps, quality: initialQuality
     const [muted, setMuted] = useState(false);
     const [dims, setDims] = useState<{ w: number; h: number; } | null>(null);
 
+    // Advanced effects (percent values; 100 = unchanged).
+    const [gain, setGain] = useState(100);
+    const [saturation, setSaturation] = useState(100);
+    const [contrast, setContrast] = useState(100);
+    const [brightness, setBrightness] = useState(100);
+    const [cropEnabled, setCropEnabled] = useState(false);
+    const [crop, setCrop] = useState<Box | null>(null);
+    const [cropDrag, setCropDrag] = useState<Box | null>(null);
+    const cropOrigin = useRef<{ x: number; y: number; } | null>(null);
+
     const frame = 1 / fps;
     const useFFmpeg = engine === "ffmpeg";
     const mod = layout !== "simple";
     const adv = layout === "advanced";
+
+    const colorFilter = (saturation === 100 && contrast === 100 && brightness === 100)
+        ? "none"
+        : `saturate(${saturation}%) contrast(${contrast}%) brightness(${brightness}%)`;
 
     useEffect(() => () => {
         URL.revokeObjectURL(url);
@@ -264,19 +287,84 @@ function TrimEditorInner({ modalProps, file, defaultFps, quality: initialQuality
 
     const selectionLength = Math.max(0, end - start);
 
+    /* ----------------------- Crop overlay (advanced) ---------------------- */
+
+    const cropToVideoPx = (clientX: number, clientY: number) => {
+        const v = videoRef.current;
+        if (!v || !dims) return { x: 0, y: 0 };
+        const rect = v.getBoundingClientRect();
+        const xr = clamp((clientX - rect.left) / rect.width, 0, 1);
+        const yr = clamp((clientY - rect.top) / rect.height, 0, 1);
+        return { x: xr * dims.w, y: yr * dims.h };
+    };
+
+    const cropPctStyle = (b: Box): React.CSSProperties => dims ? ({
+        left: `${(b.x / dims.w) * 100}%`,
+        top: `${(b.y / dims.h) * 100}%`,
+        width: `${(b.w / dims.w) * 100}%`,
+        height: `${(b.h / dims.h) * 100}%`
+    }) : {};
+
+    const onCropDown = (e: React.PointerEvent) => {
+        if (exporting) return;
+        e.preventDefault();
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+        const p = cropToVideoPx(e.clientX, e.clientY);
+        cropOrigin.current = p;
+        setCropDrag({ x: p.x, y: p.y, w: 0, h: 0 });
+    };
+    const onCropMove = (e: React.PointerEvent) => {
+        const o = cropOrigin.current;
+        if (!o || !dims) return;
+        const p = cropToVideoPx(e.clientX, e.clientY);
+        setCropDrag(normBox(o.x, o.y, p.x, p.y, dims.w, dims.h));
+    };
+    const onCropUp = (e: React.PointerEvent) => {
+        const o = cropOrigin.current;
+        cropOrigin.current = null;
+        (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
+        setCropDrag(null);
+        if (!o || !dims) return;
+        const p = cropToVideoPx(e.clientX, e.clientY);
+        const b = normBox(o.x, o.y, p.x, p.y, dims.w, dims.h);
+        if (b.w >= 8 && b.h >= 8) setCrop(b);
+    };
+
+    /* Build the ffmpeg filter chains from the advanced effect controls. */
+    const buildFilters = () => {
+        const videoFilters: string[] = [];
+        if (crop) {
+            const cw = Math.max(2, Math.floor(crop.w / 2) * 2);
+            const ch = Math.max(2, Math.floor(crop.h / 2) * 2);
+            videoFilters.push(`crop=${cw}:${ch}:${Math.round(crop.x)}:${Math.round(crop.y)}`);
+        }
+        if (saturation !== 100 || contrast !== 100 || brightness !== 100) {
+            videoFilters.push(`eq=saturation=${(saturation / 100).toFixed(3)}:contrast=${(contrast / 100).toFixed(3)}:brightness=${((brightness - 100) / 100).toFixed(3)}`);
+        }
+        const audioFilters: string[] = [];
+        if (gain !== 100) audioFilters.push(`volume=${(gain / 100).toFixed(3)}`);
+        return { videoFilters, audioFilters, hasEffects: videoFilters.length > 0 || audioFilters.length > 0 };
+    };
+
     const runExport = useCallback(async (): Promise<File> => {
-        if (useFFmpeg) {
+        const { videoFilters, audioFilters, hasEffects } = buildFilters();
+        // Effects require ffmpeg (MediaRecorder can't apply them), so force it on.
+        if (useFFmpeg || hasEffects) {
             try {
                 return await trimWithFFmpeg(file, start, end, {
                     mode,
                     crf: qualityToCrf(quality),
+                    videoFilters,
+                    audioFilters,
                     signal: signalRef.current,
                     onProgress: setProgress
                 });
             } catch (err) {
                 if (signalRef.current.cancelled) throw err;
                 // Network blocked / core failed to load → degrade gracefully.
-                showToast("FFmpeg unavailable — falling back to MediaRecorder.", Toasts.Type.MESSAGE);
+                showToast(hasEffects
+                    ? "FFmpeg unavailable — effects skipped, using MediaRecorder."
+                    : "FFmpeg unavailable — falling back to MediaRecorder.", Toasts.Type.MESSAGE);
                 setProgress(0);
             }
         }
@@ -285,7 +373,7 @@ function TrimEditorInner({ modalProps, file, defaultFps, quality: initialQuality
             signal: signalRef.current,
             onProgress: setProgress
         });
-    }, [useFFmpeg, file, start, end, mode, quality]);
+    }, [useFFmpeg, file, start, end, mode, quality, crop, saturation, contrast, brightness, gain]);
 
     const handleExport = useCallback(async () => {
         if (exporting) return;
@@ -360,14 +448,28 @@ function TrimEditorInner({ modalProps, file, defaultFps, quality: initialQuality
                 <LayoutSwitch value={layout} onChange={setLayout} />
 
                 <div className={cl("stage")}>
-                    <video
-                        ref={videoRef}
-                        src={url}
-                        playsInline
-                        onLoadedMetadata={onLoadedMetadata}
-                        onClick={togglePlay}
-                        onEnded={() => setPlaying(false)}
-                    />
+                    <div className={cl("vid-wrap")}>
+                        <video
+                            ref={videoRef}
+                            src={url}
+                            playsInline
+                            style={{ filter: colorFilter }}
+                            onLoadedMetadata={onLoadedMetadata}
+                            onClick={togglePlay}
+                            onEnded={() => setPlaying(false)}
+                        />
+                        {adv && cropEnabled && !exporting && (
+                            <div
+                                className={cl("img-overlay", "img-overlay-draw")}
+                                onPointerDown={onCropDown}
+                                onPointerMove={onCropMove}
+                                onPointerUp={onCropUp}
+                            >
+                                {crop && <div className={cl("crop-rect")} style={cropPctStyle(crop)} />}
+                                {cropDrag && <div className={cl("crop-rect", "rect-live")} style={cropPctStyle(cropDrag)} />}
+                            </div>
+                        )}
+                    </div>
                     {exporting && (
                         <div className={cl("overlay")}>
                             <div className={cl("overlay-label")}>Processing video… {Math.round(progress * 100)}%</div>
@@ -458,6 +560,51 @@ function TrimEditorInner({ modalProps, file, defaultFps, quality: initialQuality
                             <input type="checkbox" checked={muted} onChange={e => setMuted(e.target.checked)} />
                             Mute preview
                         </label>
+                    </div>
+                )}
+
+                {adv && (
+                    <div className={cl("img-controls")}>
+                        <label className={cl("slider")}>
+                            <span>Audio boost</span>
+                            <input type="range" min={100} max={400} value={gain} onChange={e => setGain(Number(e.target.value))} />
+                            <span className={cl("slider-value")}>{gain}%</span>
+                        </label>
+                        <div className={cl("modes")} title="Drag a box on the video to crop / zoom">
+                            <button className={cl("mode", { "mode-active": cropEnabled })} onClick={() => setCropEnabled(v => !v)}>
+                                Crop {cropEnabled ? "on" : "off"}
+                            </button>
+                        </div>
+                        {crop && (
+                            <button className={cl("setbtn")} onClick={() => { setCrop(null); }}>Reset crop</button>
+                        )}
+                    </div>
+                )}
+
+                {adv && (
+                    <div className={cl("img-controls")}>
+                        <label className={cl("slider")}>
+                            <span>Saturation</span>
+                            <input type="range" min={0} max={200} value={saturation} onChange={e => setSaturation(Number(e.target.value))} />
+                            <span className={cl("slider-value")}>{saturation}</span>
+                        </label>
+                        <label className={cl("slider")}>
+                            <span>Contrast</span>
+                            <input type="range" min={0} max={200} value={contrast} onChange={e => setContrast(Number(e.target.value))} />
+                            <span className={cl("slider-value")}>{contrast}</span>
+                        </label>
+                        <label className={cl("slider")}>
+                            <span>Brightness</span>
+                            <input type="range" min={50} max={150} value={brightness} onChange={e => setBrightness(Number(e.target.value))} />
+                            <span className={cl("slider-value")}>{brightness}</span>
+                        </label>
+                        <button
+                            className={cl("setbtn")}
+                            disabled={saturation === 100 && contrast === 100 && brightness === 100}
+                            onClick={() => { setSaturation(100); setContrast(100); setBrightness(100); }}
+                        >
+                            Reset color
+                        </button>
                     </div>
                 )}
 

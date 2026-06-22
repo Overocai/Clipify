@@ -314,8 +314,8 @@ export async function exportTrimmedVideo(
 /*                          Web Audio trim (offline)                          */
 /* ========================================================================== */
 
-/** Encode an {@link AudioBuffer} slice as a 16-bit PCM WAV `Blob`. */
-function encodeWav(buffer: AudioBuffer, startSample: number, endSample: number): Blob {
+/** Encode an {@link AudioBuffer} slice as a 16-bit PCM WAV `Blob`, with optional gain. */
+function encodeWav(buffer: AudioBuffer, startSample: number, endSample: number, gain = 1): Blob {
     const channels = buffer.numberOfChannels;
     const frames = Math.max(0, endSample - startSample);
     const { sampleRate } = buffer;
@@ -352,7 +352,7 @@ function encodeWav(buffer: AudioBuffer, startSample: number, endSample: number):
     let offset = 44;
     for (let i = startSample; i < endSample; i++) {
         for (let c = 0; c < channels; c++) {
-            const s = clamp(chans[c][i] ?? 0, -1, 1);
+            const s = clamp((chans[c][i] ?? 0) * gain, -1, 1);
             view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
             offset += 2;
         }
@@ -367,7 +367,7 @@ function encodeWav(buffer: AudioBuffer, startSample: number, endSample: number):
  * a lossless 16-bit `.wav`. No network and no ffmpeg required — used as the
  * MediaRecorder-engine path and as a fallback when ffmpeg is unavailable.
  */
-export async function trimAudioWebAudio(file: File, startTime: number, endTime: number): Promise<File> {
+export async function trimAudioWebAudio(file: File, startTime: number, endTime: number, gain = 1): Promise<File> {
     const AC: typeof AudioContext = window.AudioContext || (window as any).webkitAudioContext;
     const ctx = new AC();
     try {
@@ -377,7 +377,7 @@ export async function trimAudioWebAudio(file: File, startTime: number, endTime: 
         const endSample = clamp(Math.ceil(endTime * rate), startSample, decoded.length);
         if (endSample <= startSample) throw new Error("Selection is too short to trim.");
 
-        const blob = encodeWav(decoded, startSample, endSample);
+        const blob = encodeWav(decoded, startSample, endSample, gain);
         return new File([blob], `${baseName(file.name)}.wav`, { type: "audio/wav" });
     } finally {
         ctx.close().catch(() => { });

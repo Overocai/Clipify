@@ -31,13 +31,13 @@ Everything runs **locally in your client**. Your media is never uploaded to any 
 
 ## Features
 
-- **🎬 Video — frame-accurate trimmer** — scrub the timeline, set in/out points, step a single frame at a time, and preview your exact selection. Two engines (see [comparison](#video-engines)) and High / Medium / Low quality presets.
-- **🎵 Audio — quick cutter** — trim an audio clip down to the part you want with the same timeline + in/out workflow. Lossless cut (keeps the original format) or re-encode, with a fully-offline WAV fallback. Shows the source **bitrate in kbps** and lets you pick the output AAC bitrate (advanced).
+- **🎬 Video — frame-accurate trimmer** — scrub the timeline, set in/out points, step a single frame at a time, and preview your exact selection. Two engines (see [comparison](#video-engines)) and High / Medium / Low quality presets. **Advanced** adds **color grading** (saturation / contrast / brightness, previewed live), an **audio boost**, and a **crop / zoom** box you drag right on the video.
+- **🎵 Audio — quick cutter** — trim an audio clip down to the part you want with the same timeline + in/out workflow. Lossless cut (keeps the original format) or re-encode, with a fully-offline WAV fallback. Shows the source **bitrate in kbps**, and **advanced** adds an output bitrate picker and an **audio boost** (gain).
 - **🖼️ Image — mini editor** — three tools in one modal:
   - **Crop** — drag a selection box; everything outside it is dimmed.
   - **Resize** — set width / height with an optional aspect-ratio lock.
   - **Censor** — hide faces, text or anything sensitive with **blur** or **pixelate (mosaic)**. Draw **boxes** or free-hand **paint with the brush**, with sliders for intensity and brush size, plus undo / clear.
-- **🧰 Three layout modes** — a **Simple / Moderate / Advanced** switch in every editor reveals progressively more controls (quality, playback speed & mute for video; output bitrate for audio; output format & quality for images). Set the default in settings.
+- **🧰 Three layout modes** — a **Simple / Moderate / Advanced** switch in every editor reveals progressively more controls. Advanced unlocks the power-user tools: color grading, crop/zoom, audio boost, playback speed & mute (video); output bitrate & boost (audio); output format, quality & scale presets (images). Set the default in settings.
 - **⏯️ Cancellable exports** with live progress.
 - **🔒 Local-only & private** — no telemetry, no uploads. Images are edited purely on a canvas; the only network request is a one-time fetch of the FFmpeg core (see [notes](#notes--privacy)).
 - **🎚️ Per-type opt-in** — audio and image interception can each be toggled off in settings.

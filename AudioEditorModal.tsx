@@ -145,6 +145,7 @@ function AudioEditorInner({ modalProps, file, engine, defaultMode, defaultLayout
     const [layout, setLayout] = useState<LayoutMode>(defaultLayout);
     const [bitrate, setBitrate] = useState(192);
     const [srcBitrate, setSrcBitrate] = useState<number | null>(null);
+    const [gain, setGain] = useState(100);
 
     const useFFmpeg = engine === "ffmpeg";
     const mod = layout !== "simple";
@@ -223,14 +224,14 @@ function AudioEditorInner({ modalProps, file, engine, defaultMode, defaultLayout
     const runExport = useCallback(async (): Promise<File> => {
         if (useFFmpeg) {
             try {
-                return await trimAudioWithFFmpeg(file, start, end, { mode, bitrateK: bitrate, signal: signalRef.current, onProgress: setProgress });
+                return await trimAudioWithFFmpeg(file, start, end, { mode, bitrateK: bitrate, gain: gain / 100, signal: signalRef.current, onProgress: setProgress });
             } catch (err) {
                 if (signalRef.current.cancelled) throw err;
                 showToast("FFmpeg unavailable — exporting offline as WAV.", Toasts.Type.MESSAGE);
             }
         }
-        return trimAudioWebAudio(file, start, end);
-    }, [useFFmpeg, file, start, end, mode, bitrate]);
+        return trimAudioWebAudio(file, start, end, gain / 100);
+    }, [useFFmpeg, file, start, end, mode, bitrate, gain]);
 
     const handleExport = useCallback(async () => {
         if (exporting) return;
@@ -381,7 +382,18 @@ function AudioEditorInner({ modalProps, file, engine, defaultMode, defaultLayout
 
                 {mod && (srcBitrate != null) && (
                     <div className={cl("img-info")}>
-                        Source ≈ {srcBitrate} kbps{adv && mode === "precise" ? ` · output ${bitrate} kbps AAC` : ""}
+                        Source ≈ {srcBitrate} kbps{adv && (mode === "precise" || gain !== 100) ? ` · output ${bitrate} kbps AAC` : ""}
+                    </div>
+                )}
+
+                {adv && (
+                    <div className={cl("img-controls")}>
+                        <label className={cl("slider")}>
+                            <span>Audio boost</span>
+                            <input type="range" min={100} max={400} value={gain} onChange={e => setGain(Number(e.target.value))} />
+                            <span className={cl("slider-value")}>{gain}%</span>
+                        </label>
+                        {gain !== 100 && <span className={cl("img-hint")}>Boost re-encodes to AAC.</span>}
                     </div>
                 )}
 

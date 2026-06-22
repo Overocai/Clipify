@@ -80,6 +80,10 @@ export interface FfmpegTrimOptions {
     mode: TrimMode;
     /** x264 CRF for precise mode (lower = higher quality). */
     crf: number;
+    /** Extra `-vf` filters (e.g. crop / eq). Forces a re-encode when present. */
+    videoFilters?: string[];
+    /** Extra `-af` filters (e.g. volume boost). Forces a re-encode when present. */
+    audioFilters?: string[];
     onProgress?: (fraction: number) => void;
     signal?: { cancelled: boolean; };
 }
@@ -110,7 +114,11 @@ export async function trimWithFFmpeg(
     const onProgress = ({ progress }: { progress: number; }) => options.onProgress?.(clamp(progress, 0, 1));
     ff.on("progress", onProgress);
 
-    const lossless = options.mode === "lossless";
+    const vf = options.videoFilters?.filter(Boolean) ?? [];
+    const af = options.audioFilters?.filter(Boolean) ?? [];
+    const hasFilters = vf.length > 0 || af.length > 0;
+    // Filters can't be applied to a stream copy, so any effect forces a re-encode.
+    const lossless = options.mode === "lossless" && !hasFilters;
     const output = lossless ? `clipify_out_${id}${ext}` : `clipify_out_${id}.mp4`;
     const args = lossless
         ? [
@@ -126,10 +134,12 @@ export async function trimWithFFmpeg(
             "-ss", String(startTime),
             "-i", input,
             "-t", String(duration),
+            ...(vf.length ? ["-vf", vf.join(",")] : []),
             "-c:v", "libx264",
             "-preset", "veryfast",
             "-crf", String(options.crf),
             "-pix_fmt", "yuv420p",
+            ...(af.length ? ["-af", af.join(",")] : []),
             "-c:a", "aac",
             "-b:a", "128k",
             "-movflags", "+faststart",
@@ -166,6 +176,8 @@ export interface FfmpegAudioTrimOptions {
     mode: TrimMode;
     /** Output AAC bitrate in kbps for "precise" mode (default 192). */
     bitrateK?: number;
+    /** Volume multiplier (1 = unchanged). Any boost forces a re-encode. */
+    gain?: number;
     onProgress?: (fraction: number) => void;
     signal?: { cancelled: boolean; };
 }
@@ -192,7 +204,10 @@ export async function trimAudioWithFFmpeg(
     const onProgress = ({ progress }: { progress: number; }) => options.onProgress?.(clamp(progress, 0, 1));
     ff.on("progress", onProgress);
 
-    const lossless = options.mode === "lossless";
+    const gain = options.gain ?? 1;
+    const hasGain = Math.abs(gain - 1) > 0.001;
+    // A volume change can't be stream-copied, so it forces a re-encode.
+    const lossless = options.mode === "lossless" && !hasGain;
     const output = lossless ? `clipify_aout_${id}${ext}` : `clipify_aout_${id}.m4a`;
     const args = lossless
         ? [
@@ -208,6 +223,7 @@ export async function trimAudioWithFFmpeg(
             "-i", input,
             "-t", String(duration),
             "-vn",
+            ...(hasGain ? ["-af", `volume=${gain}`] : []),
             "-c:a", "aac",
             "-b:a", `${Math.round(options.bitrateK ?? 192)}k`,
             "-movflags", "+faststart",
