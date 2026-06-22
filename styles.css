@@ -669,9 +669,54 @@
 }
 
 .vc-clipify-slider input[type="range"] {
-    width: 160px;
-    accent-color: var(--brand-experiment, var(--brand-500, #5865f2));
+    -webkit-appearance: none;
+    appearance: none;
+    width: 150px;
+    height: 16px;
+    background: transparent;
     cursor: pointer;
+}
+
+/* Track: blurple fill up to --clipify-fill, muted grey after (matches the mockups). */
+.vc-clipify-slider input[type="range"]::-webkit-slider-runnable-track {
+    height: 6px;
+    border-radius: 3px;
+    background: linear-gradient(
+        to right,
+        var(--brand-experiment, var(--brand-500, #5865f2)) 0 var(--clipify-fill, 50%),
+        var(--interactive-muted, #4e5058) var(--clipify-fill, 50%) 100%
+    );
+}
+
+.vc-clipify-slider input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 15px;
+    height: 15px;
+    margin-top: -4.5px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: var(--elevation-low, 0 1px 3px rgba(0, 0, 0, 0.4));
+}
+
+.vc-clipify-slider input[type="range"]::-moz-range-track {
+    height: 6px;
+    border-radius: 3px;
+    background: var(--interactive-muted, #4e5058);
+}
+
+.vc-clipify-slider input[type="range"]::-moz-range-progress {
+    height: 6px;
+    border-radius: 3px;
+    background: var(--brand-experiment, var(--brand-500, #5865f2));
+}
+
+.vc-clipify-slider input[type="range"]::-moz-range-thumb {
+    width: 15px;
+    height: 15px;
+    border: none;
+    border-radius: 50%;
+    background: #fff;
 }
 
 .vc-clipify-slider-value {

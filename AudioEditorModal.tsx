@@ -11,6 +11,7 @@ import { Modal, React, showToast, Toasts, useCallback, useEffect, useMemo, useRe
 
 import { terminateFFmpeg, trimAudioWithFFmpeg, TrimMode } from "./ffmpeg";
 import { LayoutSwitch } from "./Layout";
+import { Slider } from "./Slider";
 import { clamp, Engine, estimateBitrateKbps, formatTimecode, LayoutMode, trimAudioWebAudio } from "./utils";
 
 const cl = classNameFactory("vc-clipify-");
@@ -388,11 +389,7 @@ function AudioEditorInner({ modalProps, file, engine, defaultMode, defaultLayout
 
                 {adv && (
                     <div className={cl("img-controls")}>
-                        <label className={cl("slider")}>
-                            <span>Audio boost</span>
-                            <input type="range" min={100} max={400} value={gain} onChange={e => setGain(Number(e.target.value))} />
-                            <span className={cl("slider-value")}>{gain}%</span>
-                        </label>
+                        <Slider label="Audio boost" min={100} max={400} value={gain} onChange={setGain} display={`${gain}%`} />
                         {gain !== 100 && <span className={cl("img-hint")}>Boost re-encodes to AAC.</span>}
                     </div>
                 )}

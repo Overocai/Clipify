@@ -11,6 +11,7 @@ import { Modal, React, showToast, Toasts, useCallback, useEffect, useMemo, useRe
 
 import { terminateFFmpeg, TrimMode, trimWithFFmpeg } from "./ffmpeg";
 import { LayoutSwitch } from "./Layout";
+import { Slider } from "./Slider";
 import { clamp, Engine, ExportQuality, exportTrimmedVideo, formatTimecode, LayoutMode, qualityToCrf } from "./utils";
 
 const cl = classNameFactory("vc-clipify-");
@@ -567,11 +568,7 @@ function TrimEditorInner({ modalProps, file, defaultFps, quality: initialQuality
 
                 {adv && (
                     <div className={cl("img-controls")}>
-                        <label className={cl("slider")}>
-                            <span>Audio boost</span>
-                            <input type="range" min={100} max={400} value={gain} onChange={e => setGain(Number(e.target.value))} />
-                            <span className={cl("slider-value")}>{gain}%</span>
-                        </label>
+                        <Slider label="Audio boost" min={100} max={400} value={gain} onChange={setGain} display={`${gain}%`} />
                         <div className={cl("modes")} title="Drag a box on the video to crop / zoom">
                             <button className={cl("mode", { "mode-active": cropEnabled })} onClick={() => setCropEnabled(v => !v)}>
                                 Crop {cropEnabled ? "on" : "off"}
@@ -585,21 +582,9 @@ function TrimEditorInner({ modalProps, file, defaultFps, quality: initialQuality
 
                 {adv && (
                     <div className={cl("img-controls")}>
-                        <label className={cl("slider")}>
-                            <span>Saturation</span>
-                            <input type="range" min={0} max={200} value={saturation} onChange={e => setSaturation(Number(e.target.value))} />
-                            <span className={cl("slider-value")}>{saturation}</span>
-                        </label>
-                        <label className={cl("slider")}>
-                            <span>Contrast</span>
-                            <input type="range" min={0} max={200} value={contrast} onChange={e => setContrast(Number(e.target.value))} />
-                            <span className={cl("slider-value")}>{contrast}</span>
-                        </label>
-                        <label className={cl("slider")}>
-                            <span>Brightness</span>
-                            <input type="range" min={50} max={150} value={brightness} onChange={e => setBrightness(Number(e.target.value))} />
-                            <span className={cl("slider-value")}>{brightness}</span>
-                        </label>
+                        <Slider label="Saturation" min={0} max={200} value={saturation} onChange={setSaturation} />
+                        <Slider label="Contrast" min={0} max={200} value={contrast} onChange={setContrast} />
+                        <Slider label="Brightness" min={50} max={150} value={brightness} onChange={setBrightness} />
                         <button
                             className={cl("setbtn")}
                             disabled={saturation === 100 && contrast === 100 && brightness === 100}

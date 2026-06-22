@@ -11,6 +11,7 @@ import { Modal, React, showToast, Toasts, useCallback, useEffect, useRef, useSta
 
 import { CensorMark, CensorStyle, exportImage, loadImage, OutputFormat, Point, Rect, renderPreview } from "./image";
 import { LayoutSwitch } from "./Layout";
+import { Slider } from "./Slider";
 import { clamp, LayoutMode, logger } from "./utils";
 
 const cl = classNameFactory("vc-clipify-");
@@ -357,17 +358,9 @@ function ImageEditorInner({ modalProps, file, defaultLayout, onComplete }: Image
                                 <button className={cl("mode", { "mode-active": shape === "brush" })} onClick={() => setShape("brush")}>Brush</button>
                             </div>
                         )}
-                        <label className={cl("slider")}>
-                            <span>Intensity</span>
-                            <input type="range" min={0} max={100} value={intensity} onChange={e => setIntensity(Number(e.target.value))} />
-                            <span className={cl("slider-value")}>{intensity}</span>
-                        </label>
+                        <Slider label="Intensity" min={0} max={100} value={intensity} onChange={setIntensity} />
                         {mod && shape === "brush" && (
-                            <label className={cl("slider")}>
-                                <span>Brush</span>
-                                <input type="range" min={4} max={maxBrush} value={Math.min(brushSize, maxBrush)} onChange={e => setBrushSize(Number(e.target.value))} />
-                                <span className={cl("slider-value")}>{brushSize}</span>
-                            </label>
+                            <Slider label="Brush" min={4} max={maxBrush} value={Math.min(brushSize, maxBrush)} onChange={setBrushSize} display={brushSize} />
                         )}
                         {mod && (
                             <button className={cl("iconbtn", "iconbtn-sm")} title="Undo last mark" disabled={marks.length === 0} onClick={undoMark}>
@@ -393,11 +386,7 @@ function ImageEditorInner({ modalProps, file, defaultLayout, onComplete }: Image
                             ))}
                         </div>
                         {lossyFormat && (
-                            <label className={cl("slider")}>
-                                <span>Quality</span>
-                                <input type="range" min={10} max={100} value={quality} onChange={e => setQuality(Number(e.target.value))} />
-                                <span className={cl("slider-value")}>{quality}</span>
-                            </label>
+                            <Slider label="Quality" min={10} max={100} value={quality} onChange={setQuality} />
                         )}
                     </div>
                 )}
