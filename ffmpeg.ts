@@ -84,12 +84,27 @@ export interface FfmpegTrimOptions {
     videoFilters?: string[];
     /** Extra `-af` filters (e.g. volume boost). Forces a re-encode when present. */
     audioFilters?: string[];
+    /** Playback speed multiplier (1 = unchanged). Forces a re-encode when ≠ 1. */
+    speed?: number;
     onProgress?: (fraction: number) => void;
     signal?: { cancelled: boolean; };
 }
 
 function extOf(name: string): string {
     return name.match(/\.[a-z0-9]+$/i)?.[0].toLowerCase() ?? ".mp4";
+}
+
+/**
+ * Decompose a speed factor into a chain of `atempo` filters, each within
+ * ffmpeg's supported [0.5, 2.0] range (e.g. 5× → atempo=2,2,1.25).
+ */
+function buildAtempo(speed: number): string[] {
+    const parts: number[] = [];
+    let r = speed;
+    while (r > 2) { parts.push(2); r /= 2; }
+    while (r < 0.5) { parts.push(0.5); r /= 0.5; }
+    parts.push(r);
+    return parts.map(p => `atempo=${p.toFixed(4)}`);
 }
 
 /**
@@ -114,11 +129,20 @@ export async function trimWithFFmpeg(
     const onProgress = ({ progress }: { progress: number; }) => options.onProgress?.(clamp(progress, 0, 1));
     ff.on("progress", onProgress);
 
-    const vf = options.videoFilters?.filter(Boolean) ?? [];
-    const af = options.audioFilters?.filter(Boolean) ?? [];
+    const speed = options.speed ?? 1;
+    const speedChanged = Math.abs(speed - 1) > 0.001;
+
+    const vf = [...(options.videoFilters?.filter(Boolean) ?? [])];
+    const af = [...(options.audioFilters?.filter(Boolean) ?? [])];
+    if (speedChanged) {
+        vf.push(`setpts=${(1 / speed).toFixed(6)}*PTS`);
+        af.push(...buildAtempo(speed));
+    }
     const hasFilters = vf.length > 0 || af.length > 0;
     // Filters can't be applied to a stream copy, so any effect forces a re-encode.
     const lossless = options.mode === "lossless" && !hasFilters;
+    // Speeding up/slowing down changes the output length; cap by the resulting duration.
+    const outDur = speedChanged ? duration / speed : duration;
     const output = lossless ? `clipify_out_${id}${ext}` : `clipify_out_${id}.mp4`;
     const args = lossless
         ? [
@@ -133,7 +157,7 @@ export async function trimWithFFmpeg(
         : [
             "-ss", String(startTime),
             "-i", input,
-            "-t", String(duration),
+            "-t", String(outDur),
             ...(vf.length ? ["-vf", vf.join(",")] : []),
             "-c:v", "libx264",
             "-preset", "veryfast",

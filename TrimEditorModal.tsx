@@ -30,7 +30,7 @@ export interface TrimEditorModalProps {
     onComplete: (trimmed: File) => void;
 }
 
-const SPEEDS = [0.5, 1, 2] as const;
+const SPEEDS = [0.25, 0.5, 1, 2, 5, 10] as const;
 const QUALITIES: ReadonlyArray<[ExportQuality, string]> = [["high", "High"], ["medium", "Medium"], ["low", "Low"]];
 
 /** A crop rectangle in source-video pixels. */
@@ -343,7 +343,8 @@ function TrimEditorInner({ modalProps, file, defaultFps, quality: initialQuality
         }
         const audioFilters: string[] = [];
         if (gain !== 100) audioFilters.push(`volume=${(gain / 100).toFixed(3)}`);
-        return { videoFilters, audioFilters, hasEffects: videoFilters.length > 0 || audioFilters.length > 0 };
+        const hasEffects = videoFilters.length > 0 || audioFilters.length > 0 || speed !== 1;
+        return { videoFilters, audioFilters, hasEffects };
     };
 
     const runExport = useCallback(async (): Promise<File> => {
@@ -356,6 +357,7 @@ function TrimEditorInner({ modalProps, file, defaultFps, quality: initialQuality
                     crf: qualityToCrf(quality),
                     videoFilters,
                     audioFilters,
+                    speed,
                     signal: signalRef.current,
                     onProgress: setProgress
                 });
@@ -373,7 +375,7 @@ function TrimEditorInner({ modalProps, file, defaultFps, quality: initialQuality
             signal: signalRef.current,
             onProgress: setProgress
         });
-    }, [useFFmpeg, file, start, end, mode, quality, crop, saturation, contrast, brightness, gain]);
+    }, [useFFmpeg, file, start, end, mode, quality, crop, saturation, contrast, brightness, gain, speed]);
 
     const handleExport = useCallback(async () => {
         if (exporting) return;
@@ -549,9 +551,9 @@ function TrimEditorInner({ modalProps, file, defaultFps, quality: initialQuality
                                 </button>
                             ))}
                         </div>
-                        <div className={cl("modes")}>
+                        <div className={cl("modes")} title="Playback speed (applied to the export too)">
                             {SPEEDS.map(s => (
-                                <button key={s} className={cl("mode", { "mode-active": speed === s })} onClick={() => setSpeed(s)} title="Preview speed">
+                                <button key={s} className={cl("mode", { "mode-active": speed === s })} onClick={() => setSpeed(s)}>
                                     {s}×
                                 </button>
                             ))}
