@@ -194,6 +194,10 @@
     justify-content: space-between;
     gap: 12px;
     min-height: 34px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: var(--background-secondary);
+    border: 1px solid var(--background-modifier-accent);
 }
 
 .vc-clipify-modes {
@@ -633,6 +637,10 @@
     justify-content: center;
     gap: 14px;
     min-height: 34px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: var(--background-secondary);
+    border: 1px solid var(--background-modifier-accent);
 }
 
 .vc-clipify-img-check {

@@ -39,6 +39,7 @@
   <text x="340" y="190" fill="#fff" font-size="11">✕</text>
 
   <!-- censor controls -->
+  <rect x="16" y="400" width="728" height="36" rx="8" fill="#2b2d31" stroke="#3f4147"/>
   <rect x="24" y="406" width="92" height="26" rx="8" fill="#1e1f22"/>
   <rect x="27" y="409" width="42" height="20" rx="6" fill="#5865f2"/>
   <text x="38" y="423" fill="#fff" font-size="11" font-weight="600">Blur</text>
@@ -61,6 +62,7 @@
   <text x="664" y="423" fill="#dbdee1" font-size="12" font-weight="600">Clear all</text>
 
   <!-- output (advanced) -->
+  <rect x="16" y="440" width="728" height="34" rx="8" fill="#2b2d31" stroke="#3f4147"/>
   <text x="24" y="458" fill="#949ba4" font-size="11" font-weight="700">OUTPUT</text>
   <rect x="84" y="444" width="200" height="26" rx="8" fill="#1e1f22"/>
   <text x="98" y="461" fill="#949ba4" font-size="11" font-weight="600">Auto</text>

@@ -35,6 +35,7 @@
   </g>
 
   <!-- mode + fps -->
+  <rect x="16" y="350" width="728" height="36" rx="8" fill="#2b2d31" stroke="#3f4147"/>
   <rect x="24" y="356" width="156" height="28" rx="8" fill="#1e1f22"/>
   <rect x="27" y="359" width="74" height="22" rx="6" fill="#5865f2"/>
   <text x="44" y="374" fill="#fff" font-size="12" font-weight="600">Precise</text>
@@ -44,6 +45,7 @@
   <text x="700" y="374" fill="#f2f3f5" font-size="12" font-family="monospace">30</text>
 
   <!-- advanced row 1: quality / speed / mute -->
+  <rect x="16" y="390" width="728" height="34" rx="8" fill="#2b2d31" stroke="#3f4147"/>
   <rect x="24" y="394" width="150" height="26" rx="8" fill="#1e1f22"/>
   <rect x="27" y="397" width="46" height="20" rx="6" fill="#5865f2"/>
   <text x="38" y="411" fill="#fff" font-size="11" font-weight="600">High</text>
@@ -60,6 +62,7 @@
   <text x="534" y="411" fill="#949ba4" font-size="12" font-weight="600">Mute preview</text>
 
   <!-- advanced row 2: audio boost + crop -->
+  <rect x="16" y="428" width="728" height="36" rx="8" fill="#2b2d31" stroke="#3f4147"/>
   <text x="24" y="446" fill="#949ba4" font-size="11" font-weight="700">AUDIO BOOST</text>
   <rect x="120" y="441" width="180" height="6" rx="3" fill="#4e5058"/>
   <rect x="120" y="441" width="120" height="6" rx="3" fill="#5865f2"/>
@@ -71,6 +74,7 @@
   <text x="482" y="448" fill="#dbdee1" font-size="12" font-weight="600">Reset crop</text>
 
   <!-- advanced row 3: color grading -->
+  <rect x="16" y="468" width="728" height="32" rx="8" fill="#2b2d31" stroke="#3f4147"/>
   <g font-size="11" font-weight="700" fill="#949ba4">
     <text x="24" y="484">SAT</text>
     <rect x="58" y="479" width="120" height="6" rx="3" fill="#4e5058"/><rect x="58" y="479" width="78" height="6" rx="3" fill="#5865f2"/><circle cx="136" cy="482" r="7" fill="#fff"/><text x="188" y="484" fill="#f2f3f5" font-family="monospace">130</text>
