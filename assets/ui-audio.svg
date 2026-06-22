@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="768" height="500" viewBox="0 0 768 500" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <rect x="2" y="2" width="764" height="496" rx="10" fill="#313338" stroke="#1e1f22" stroke-width="2"/>
+
+  <!-- header -->
+  <text x="24" y="36" fill="#f2f3f5" font-size="19" font-weight="700">Audio trim editor</text>
+  <text x="738" y="36" fill="#b5bac1" font-size="18">✕</text>
+  <line x1="24" y1="52" x2="744" y2="52" stroke="#3f4147" stroke-width="1"/>
+
+  <!-- layout switch -->
+  <text x="252" y="80" fill="#949ba4" font-size="11" font-weight="700" letter-spacing="1">LAYOUT</text>
+  <rect x="312" y="66" width="222" height="26" rx="8" fill="#1e1f22"/>
+  <text x="332" y="83" fill="#949ba4" font-size="12" font-weight="600">Simple</text>
+  <text x="392" y="83" fill="#949ba4" font-size="12" font-weight="600">Moderate</text>
+  <rect x="462" y="69" width="68" height="20" rx="6" fill="#5865f2"/>
+  <text x="471" y="83" fill="#ffffff" font-size="12" font-weight="600">Advanced</text>
+
+  <!-- stage: big play + filename -->
+  <rect x="24" y="104" width="720" height="120" rx="8" fill="#1e1f22"/>
+  <circle cx="384" cy="150" r="30" fill="#5865f2"/>
+  <path d="M375 138 L375 162 L397 150 Z" fill="#fff"/>
+  <text x="356" y="204" fill="#f2f3f5" font-size="13" font-weight="600">♪  song.mp3</text>
+
+  <!-- readouts -->
+  <g font-size="11" font-weight="700">
+    <rect x="24" y="236" width="170" height="48" rx="8" fill="#2b2d31" stroke="#5865f2"/>
+    <text x="36" y="256" fill="#949ba4">START</text><text x="36" y="276" fill="#5865f2" font-size="15" font-family="monospace">00:00.000</text>
+    <rect x="204" y="236" width="170" height="48" rx="8" fill="#2b2d31" stroke="#5865f2"/>
+    <text x="216" y="256" fill="#949ba4">END</text><text x="216" y="276" fill="#5865f2" font-size="15" font-family="monospace">00:30.000</text>
+    <rect x="384" y="236" width="170" height="48" rx="8" fill="#2b2d31" stroke="#3f4147"/>
+    <text x="396" y="256" fill="#949ba4">CURRENT</text><text x="396" y="276" fill="#f2f3f5" font-size="15" font-family="monospace">00:08.100</text>
+    <rect x="564" y="236" width="170" height="48" rx="8" fill="#2b2d31" stroke="#3f4147"/>
+    <text x="576" y="256" fill="#949ba4">DURATION</text><text x="576" y="276" fill="#f2f3f5" font-size="15" font-family="monospace">00:30.000</text>
+  </g>
+
+  <!-- mode + bitrate -->
+  <rect x="24" y="298" width="170" height="28" rx="8" fill="#1e1f22"/>
+  <rect x="27" y="301" width="80" height="22" rx="6" fill="#5865f2"/>
+  <text x="40" y="316" fill="#fff" font-size="12" font-weight="600">Lossless</text>
+  <text x="118" y="316" fill="#949ba4" font-size="12" font-weight="600">Re-encode</text>
+
+  <rect x="520" y="298" width="214" height="28" rx="8" fill="#1e1f22"/>
+  <g font-size="11" font-weight="600" fill="#949ba4">
+    <text x="534" y="316">96k</text><text x="572" y="316">128k</text>
+    <rect x="612" y="301" width="46" height="22" rx="6" fill="#5865f2"/><text x="622" y="316" fill="#fff">192k</text>
+    <text x="666" y="316">256k</text><text x="706" y="316">320k</text>
+  </g>
+
+  <!-- source bitrate info -->
+  <text x="24" y="352" fill="#72767d" font-size="12">Source ≈ 256 kbps · output 192 kbps AAC</text>
+
+  <!-- audio boost -->
+  <text x="24" y="386" fill="#949ba4" font-size="11" font-weight="700">AUDIO BOOST</text>
+  <rect x="120" y="381" width="200" height="6" rx="3" fill="#4e5058"/>
+  <rect x="120" y="381" width="150" height="6" rx="3" fill="#5865f2"/>
+  <circle cx="270" cy="384" r="7" fill="#fff"/>
+  <text x="332" y="386" fill="#f2f3f5" font-size="12" font-family="monospace">250%</text>
+  <text x="392" y="386" fill="#72767d" font-size="11">boost re-encodes to AAC</text>
+
+  <!-- timeline -->
+  <rect x="24" y="408" width="720" height="10" rx="5" fill="#4e5058"/>
+  <rect x="120" y="408" width="540" height="10" fill="#5865f2"/>
+  <rect x="114" y="401" width="12" height="24" rx="4" fill="#5865f2" stroke="#fff" stroke-width="2"/>
+  <rect x="654" y="401" width="12" height="24" rx="4" fill="#5865f2" stroke="#fff" stroke-width="2"/>
+
+  <!-- footer / actions -->
+  <line x1="0" y1="448" x2="768" y2="448" stroke="#1e1f22" stroke-width="2"/>
+  <rect x="0" y="448" width="768" height="52" fill="#2b2d31"/>
+  <rect x="566" y="460" width="124" height="32" rx="6" fill="#5865f2"/>
+  <text x="588" y="481" fill="#fff" font-size="13" font-weight="600">Trim &amp; send</text>
+  <text x="704" y="481" fill="#b5bac1" font-size="13" font-weight="600">Cancel</text>
+</svg>

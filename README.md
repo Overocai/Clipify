@@ -29,6 +29,20 @@ Everything runs **locally in your client**. Your media is never uploaded to any 
 
 </div>
 
+### The editors
+
+> Interface mockups of each editor in **Advanced** layout.
+
+<div align="center">
+
+<img src="assets/ui-video.svg" alt="Video trim editor (advanced)" width="640"/>
+
+<img src="assets/ui-audio.svg" alt="Audio trim editor (advanced)" width="640"/>
+
+<img src="assets/ui-image.svg" alt="Image editor — censor with brush (advanced)" width="640"/>
+
+</div>
+
 ## Features
 
 - **🎬 Video — frame-accurate trimmer** — scrub the timeline, set in/out points, step a single frame at a time, and preview your exact selection. Two engines (see [comparison](#video-engines)) and High / Medium / Low quality presets. **Advanced** adds **color grading** (saturation / contrast / brightness, previewed live), an **audio boost**, and a **crop / zoom** box you drag right on the video.
