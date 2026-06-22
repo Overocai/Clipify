@@ -34,6 +34,15 @@ const IMAGE_EXTENSIONS: readonly string[] = [
 /** The kinds of media Clipify can intercept and edit. */
 export type MediaKind = "video" | "audio" | "image";
 
+/** Editor complexity preset — how many controls each editor reveals. */
+export type LayoutMode = "simple" | "moderate" | "advanced";
+
+/** Estimate a media file's average bitrate in kbps from its size and duration. */
+export function estimateBitrateKbps(bytes: number, durationSec: number): number | null {
+    if (!bytes || !Number.isFinite(durationSec) || durationSec <= 0) return null;
+    return Math.round((bytes * 8) / durationSec / 1000);
+}
+
 function extOf(name: string): string {
     return name.split(".").pop()?.toLowerCase() ?? "";
 }

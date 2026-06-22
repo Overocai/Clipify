@@ -9,8 +9,9 @@ import { classNameFactory } from "@utils/css";
 import type { RenderModalProps } from "@vencord/discord-types";
 import { Modal, React, showToast, Toasts, useCallback, useEffect, useRef, useState } from "@webpack/common";
 
-import { CensorMark, CensorStyle, exportImage, loadImage, Point, Rect, renderPreview } from "./image";
-import { clamp, logger } from "./utils";
+import { CensorMark, CensorStyle, exportImage, loadImage, OutputFormat, Point, Rect, renderPreview } from "./image";
+import { LayoutSwitch } from "./Layout";
+import { clamp, LayoutMode, logger } from "./utils";
 
 const cl = classNameFactory("vc-clipify-");
 
@@ -25,8 +26,14 @@ type CensorShape = "box" | "brush";
 export interface ImageEditorModalProps {
     modalProps: RenderModalProps;
     file: File;
+    defaultLayout: LayoutMode;
     onComplete: (edited: File) => void;
 }
+
+const FORMATS: ReadonlyArray<[OutputFormat, string]> = [
+    ["auto", "Auto"], ["png", "PNG"], ["jpeg", "JPEG"], ["webp", "WebP"]
+];
+const SCALE_PRESETS = [25, 50, 100] as const;
 
 /** Normalise a drag (which may go up/left) into a positive rect, clamped to bounds. */
 function normalizeRect(ax: number, ay: number, bx: number, by: number, maxW: number, maxH: number): Rect {
@@ -51,7 +58,7 @@ const ICONS = {
     undo: "M12 5V1L7 6l5 5V7a6 6 0 1 1-6 6H4a8 8 0 1 0 8-8z"
 };
 
-function ImageEditorInner({ modalProps, file, onComplete }: ImageEditorModalProps) {
+function ImageEditorInner({ modalProps, file, defaultLayout, onComplete }: ImageEditorModalProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const stageRef = useRef<HTMLDivElement>(null);
 
@@ -67,6 +74,10 @@ function ImageEditorInner({ modalProps, file, onComplete }: ImageEditorModalProp
     const [resize, setResize] = useState<{ w: number; h: number; } | null>(null);
     const [aspectLock, setAspectLock] = useState(true);
 
+    const [layout, setLayout] = useState<LayoutMode>(defaultLayout);
+    const [format, setFormat] = useState<OutputFormat>("auto");
+    const [quality, setQuality] = useState(92);
+
     const [drag, setDrag] = useState<Rect | null>(null);
     const [draftStroke, setDraftStroke] = useState<Point[] | null>(null);
     const [exporting, setExporting] = useState(false);
@@ -74,6 +85,16 @@ function ImageEditorInner({ modalProps, file, onComplete }: ImageEditorModalProp
     const natW = img?.naturalWidth ?? 0;
     const natH = img?.naturalHeight ?? 0;
     const maxBrush = Math.max(20, Math.round(Math.min(natW || 100, natH || 100) * 0.25));
+    const mod = layout !== "simple";
+    const adv = layout === "advanced";
+
+    // Simple mode keeps censoring to the basics (blur boxes only).
+    useEffect(() => {
+        if (layout === "simple") {
+            setStyle("blur");
+            setShape("box");
+        }
+    }, [layout]);
 
     // Load the image once, seeding a sensible brush size from its dimensions.
     useEffect(() => {
@@ -202,7 +223,11 @@ function ImageEditorInner({ modalProps, file, onComplete }: ImageEditorModalProp
         if (exporting || !img) return;
         setExporting(true);
         try {
-            const edited = await exportImage(file, img, { marks, crop, resize, style, intensity });
+            const edited = await exportImage(file, img, {
+                marks, crop, resize, style, intensity,
+                format: adv ? format : "auto",
+                quality: quality / 100
+            });
             onComplete(edited);
             showToast("Image edited and added to your message!", Toasts.Type.SUCCESS);
             modalProps.onClose();
@@ -210,12 +235,15 @@ function ImageEditorInner({ modalProps, file, onComplete }: ImageEditorModalProp
             showToast(`Edit failed: ${err instanceof Error ? err.message : String(err)}`, Toasts.Type.FAILURE);
             setExporting(false);
         }
-    }, [exporting, img, file, marks, crop, resize, style, intensity, onComplete, modalProps]);
+    }, [exporting, img, file, marks, crop, resize, style, intensity, adv, format, quality, onComplete, modalProps]);
 
     const cropW = Math.round(crop?.w ?? natW);
     const cropH = Math.round(crop?.h ?? natH);
     const outW = resize?.w ?? cropW;
     const outH = resize?.h ?? cropH;
+
+    const applyScalePreset = (pct: number) => setResize({ w: Math.max(1, Math.round(cropW * pct / 100)), h: Math.max(1, Math.round(cropH * pct / 100)) });
+    const lossyFormat = adv && (format === "jpeg" || format === "webp" || (format === "auto" && /jpe?g|webp/i.test(file.type)));
 
     return (
         <Modal
@@ -228,6 +256,8 @@ function ImageEditorInner({ modalProps, file, onComplete }: ImageEditorModalProp
             ]}
         >
             <div className={cl("editor")}>
+                <LayoutSwitch value={layout} onChange={setLayout} />
+
                 <div className={cl("tools")}>
                     <button className={cl("tool", { "tool-active": tool === "crop" })} onClick={() => setTool("crop")}>
                         <Icon d={ICONS.crop} /> Crop
@@ -304,6 +334,13 @@ function ImageEditorInner({ modalProps, file, onComplete }: ImageEditorModalProp
                             <input type="checkbox" checked={aspectLock} onChange={e => setAspectLock(e.target.checked)} />
                             Lock ratio
                         </label>
+                        {adv && (
+                            <div className={cl("modes")} title="Scale to a percentage of the crop">
+                                {SCALE_PRESETS.map(p => (
+                                    <button key={p} className={cl("mode")} onClick={() => applyScalePreset(p)}>{p}%</button>
+                                ))}
+                            </div>
+                        )}
                         <button className={cl("setbtn")} onClick={() => setResize({ w: cropW, h: cropH })}>Reset</button>
                     </div>
                 )}
@@ -312,27 +349,31 @@ function ImageEditorInner({ modalProps, file, onComplete }: ImageEditorModalProp
                     <div className={cl("img-controls")}>
                         <div className={cl("modes")}>
                             <button className={cl("mode", { "mode-active": style === "blur" })} onClick={() => setStyle("blur")}>Blur</button>
-                            <button className={cl("mode", { "mode-active": style === "pixelate" })} onClick={() => setStyle("pixelate")}>Pixelate</button>
+                            {mod && <button className={cl("mode", { "mode-active": style === "pixelate" })} onClick={() => setStyle("pixelate")}>Pixelate</button>}
                         </div>
-                        <div className={cl("modes")}>
-                            <button className={cl("mode", { "mode-active": shape === "box" })} onClick={() => setShape("box")}>Box</button>
-                            <button className={cl("mode", { "mode-active": shape === "brush" })} onClick={() => setShape("brush")}>Brush</button>
-                        </div>
+                        {mod && (
+                            <div className={cl("modes")}>
+                                <button className={cl("mode", { "mode-active": shape === "box" })} onClick={() => setShape("box")}>Box</button>
+                                <button className={cl("mode", { "mode-active": shape === "brush" })} onClick={() => setShape("brush")}>Brush</button>
+                            </div>
+                        )}
                         <label className={cl("slider")}>
                             <span>Intensity</span>
                             <input type="range" min={0} max={100} value={intensity} onChange={e => setIntensity(Number(e.target.value))} />
                             <span className={cl("slider-value")}>{intensity}</span>
                         </label>
-                        {shape === "brush" && (
+                        {mod && shape === "brush" && (
                             <label className={cl("slider")}>
                                 <span>Brush</span>
                                 <input type="range" min={4} max={maxBrush} value={Math.min(brushSize, maxBrush)} onChange={e => setBrushSize(Number(e.target.value))} />
                                 <span className={cl("slider-value")}>{brushSize}</span>
                             </label>
                         )}
-                        <button className={cl("iconbtn", "iconbtn-sm")} title="Undo last mark" disabled={marks.length === 0} onClick={undoMark}>
-                            <Icon d={ICONS.undo} />
-                        </button>
+                        {mod && (
+                            <button className={cl("iconbtn", "iconbtn-sm")} title="Undo last mark" disabled={marks.length === 0} onClick={undoMark}>
+                                <Icon d={ICONS.undo} />
+                            </button>
+                        )}
                         <button className={cl("setbtn")} disabled={marks.length === 0} onClick={() => setMarks([])}>Clear all</button>
                     </div>
                 )}
@@ -340,6 +381,24 @@ function ImageEditorInner({ modalProps, file, onComplete }: ImageEditorModalProp
                 {tool === "censor" && (
                     <div className={cl("img-hint")} style={{ textAlign: "center" }}>
                         {shape === "box" ? "Drag boxes over anything you want to hide." : "Paint over anything you want to hide."}
+                    </div>
+                )}
+
+                {adv && (
+                    <div className={cl("img-controls")}>
+                        <span className={cl("layout-label")}>Output</span>
+                        <div className={cl("modes")}>
+                            {FORMATS.map(([f, label]) => (
+                                <button key={f} className={cl("mode", { "mode-active": format === f })} onClick={() => setFormat(f)}>{label}</button>
+                            ))}
+                        </div>
+                        {lossyFormat && (
+                            <label className={cl("slider")}>
+                                <span>Quality</span>
+                                <input type="range" min={10} max={100} value={quality} onChange={e => setQuality(Number(e.target.value))} />
+                                <span className={cl("slider-value")}>{quality}</span>
+                            </label>
+                        )}
                     </div>
                 )}
 

@@ -16,7 +16,7 @@ import { ChoiceModal } from "./ChoiceModal";
 import { TrimMode } from "./ffmpeg";
 import { ImageEditorModal } from "./ImageEditorModal";
 import { TrimEditorModal } from "./TrimEditorModal";
-import { Engine, ExportQuality, extractFiles, logger, MediaKind, mediaKindOf } from "./utils";
+import { Engine, ExportQuality, extractFiles, LayoutMode, logger, MediaKind, mediaKindOf } from "./utils";
 
 /* ========================================================================== */
 /*                                  Settings                                  */
@@ -67,6 +67,15 @@ const settings = definePluginSettings({
         type: OptionType.NUMBER,
         description: "Assumed FPS for frame-by-frame navigation in the editor.",
         default: 30
+    },
+    layout: {
+        type: OptionType.SELECT,
+        description: "Default editor layout. Simple shows the essentials; Advanced exposes every control.",
+        options: [
+            { label: "Simple", value: "simple" },
+            { label: "Moderate", value: "moderate", default: true },
+            { label: "Advanced", value: "advanced" }
+        ]
     }
 });
 
@@ -139,6 +148,7 @@ function openEditor(ctx: UploadContext, target: File, kind: MediaKind, others: F
     // Only the chosen file is edited; everything else in the same drop is
     // forwarded untouched once the user finishes.
     const onComplete = (edited: File) => reAddFiles([edited, ...others], ctx);
+    const defaultLayout = settings.store.layout as LayoutMode;
 
     if (kind === "video") {
         openModal(modalProps => (
@@ -149,6 +159,7 @@ function openEditor(ctx: UploadContext, target: File, kind: MediaKind, others: F
                 quality={settings.store.exportQuality as ExportQuality}
                 engine={settings.store.engine as Engine}
                 defaultMode={settings.store.trimMode as TrimMode}
+                defaultLayout={defaultLayout}
                 onComplete={onComplete}
             />
         ));
@@ -159,6 +170,7 @@ function openEditor(ctx: UploadContext, target: File, kind: MediaKind, others: F
                 file={target}
                 engine={settings.store.engine as Engine}
                 defaultMode={settings.store.trimMode as TrimMode}
+                defaultLayout={defaultLayout}
                 onComplete={onComplete}
             />
         ));
@@ -167,6 +179,7 @@ function openEditor(ctx: UploadContext, target: File, kind: MediaKind, others: F
             <ImageEditorModal
                 modalProps={modalProps}
                 file={target}
+                defaultLayout={defaultLayout}
                 onComplete={onComplete}
             />
         ));

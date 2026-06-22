@@ -50,6 +50,9 @@ export interface CensorSettings {
     intensity: number;
 }
 
+/** Output format; "auto" keeps the source format. */
+export type OutputFormat = "auto" | "png" | "jpeg" | "webp";
+
 export interface RenderOptions extends CensorSettings {
     /** Censor marks to bake in (natural coordinates). */
     marks: readonly CensorMark[];
@@ -57,6 +60,10 @@ export interface RenderOptions extends CensorSettings {
     crop: Rect | null;
     /** Output size; defaults to the crop (or natural) size. */
     resize: { w: number; h: number; } | null;
+    /** Output format override (advanced); defaults to "auto". */
+    format?: OutputFormat;
+    /** Encoder quality 0–1 for lossy formats (jpeg/webp); defaults to 0.92. */
+    quality?: number;
 }
 
 /* ========================================================================== */
@@ -232,19 +239,27 @@ export function renderPreview(
 /*                                  Export                                    */
 /* ========================================================================== */
 
-/** Choose an output MIME type, preferring the source format (no transparency loss). */
-function outputType(file: File): { type: string; ext: string; } {
+const FORMAT_TYPE: Record<Exclude<OutputFormat, "auto">, { type: string; ext: string; }> = {
+    png: { type: "image/png", ext: ".png" },
+    webp: { type: "image/webp", ext: ".webp" },
+    jpeg: { type: "image/jpeg", ext: ".jpg" }
+};
+
+/** Choose an output MIME type from an explicit format, else from the source. */
+function outputType(file: File, format: OutputFormat = "auto"): { type: string; ext: string; } {
+    if (format !== "auto") return FORMAT_TYPE[format];
+
     const t = file.type;
-    if (t === "image/png") return { type: "image/png", ext: ".png" };
-    if (t === "image/webp") return { type: "image/webp", ext: ".webp" };
-    if (t === "image/jpeg") return { type: "image/jpeg", ext: ".jpg" };
+    if (t === "image/png") return FORMAT_TYPE.png;
+    if (t === "image/webp") return FORMAT_TYPE.webp;
+    if (t === "image/jpeg") return FORMAT_TYPE.jpeg;
 
     const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
-    if (ext === "png") return { type: "image/png", ext: ".png" };
-    if (ext === "webp") return { type: "image/webp", ext: ".webp" };
-    if (ext === "jpg" || ext === "jpeg") return { type: "image/jpeg", ext: ".jpg" };
+    if (ext === "png") return FORMAT_TYPE.png;
+    if (ext === "webp") return FORMAT_TYPE.webp;
+    if (ext === "jpg" || ext === "jpeg") return FORMAT_TYPE.jpeg;
     // Fall back to PNG — lossless and universally supported by canvas.
-    return { type: "image/png", ext: ".png" };
+    return FORMAT_TYPE.png;
 }
 
 function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: number): Promise<Blob> {
@@ -286,7 +301,7 @@ export async function exportImage(file: File, img: HTMLImageElement, opts: Rende
     octx.imageSmoothingQuality = "high";
     octx.drawImage(full, crop.x, crop.y, cropW, cropH, 0, 0, outW, outH);
 
-    const { type, ext } = outputType(file);
-    const blob = await canvasToBlob(out, type, 0.92);
+    const { type, ext } = outputType(file, opts.format);
+    const blob = await canvasToBlob(out, type, opts.quality ?? 0.92);
     return new File([blob], `${baseName(file.name)}${ext}`, { type });
 }

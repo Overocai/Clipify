@@ -10,7 +10,8 @@ import type { RenderModalProps } from "@vencord/discord-types";
 import { Modal, React, showToast, Toasts, useCallback, useEffect, useMemo, useRef, useState } from "@webpack/common";
 
 import { terminateFFmpeg, trimAudioWithFFmpeg, TrimMode } from "./ffmpeg";
-import { clamp, Engine, formatTimecode, trimAudioWebAudio } from "./utils";
+import { LayoutSwitch } from "./Layout";
+import { clamp, Engine, estimateBitrateKbps, formatTimecode, LayoutMode, trimAudioWebAudio } from "./utils";
 
 const cl = classNameFactory("vc-clipify-");
 
@@ -21,8 +22,12 @@ export interface AudioEditorModalProps {
     file: File;
     engine: Engine;
     defaultMode: TrimMode;
+    defaultLayout: LayoutMode;
     onComplete: (trimmed: File) => void;
 }
+
+/** Selectable AAC output bitrates (kbps) for re-encode. */
+const BITRATES = [96, 128, 192, 256, 320] as const;
 
 /* ----------------------------- Timeline --------------------------------- */
 
@@ -122,7 +127,7 @@ const ICONS = {
 
 /* --------------------------- Editor modal ------------------------------- */
 
-function AudioEditorInner({ modalProps, file, engine, defaultMode, onComplete }: AudioEditorModalProps) {
+function AudioEditorInner({ modalProps, file, engine, defaultMode, defaultLayout, onComplete }: AudioEditorModalProps) {
     const url = useMemo(() => URL.createObjectURL(file), [file]);
     const audioRef = useRef<HTMLAudioElement>(null);
     const rafRef = useRef<number>(0);
@@ -137,7 +142,13 @@ function AudioEditorInner({ modalProps, file, engine, defaultMode, onComplete }:
     const [exporting, setExporting] = useState(false);
     const [progress, setProgress] = useState(0);
 
+    const [layout, setLayout] = useState<LayoutMode>(defaultLayout);
+    const [bitrate, setBitrate] = useState(192);
+    const [srcBitrate, setSrcBitrate] = useState<number | null>(null);
+
     const useFFmpeg = engine === "ffmpeg";
+    const mod = layout !== "simple";
+    const adv = layout === "advanced";
 
     useEffect(() => () => {
         URL.revokeObjectURL(url);
@@ -152,6 +163,7 @@ function AudioEditorInner({ modalProps, file, engine, defaultMode, onComplete }:
         setDuration(d);
         setEnd(d);
         setCurrent(0);
+        setSrcBitrate(estimateBitrateKbps(file.size, d));
     };
 
     /* Loop playback inside the [start, end] selection for a live preview. */
@@ -211,14 +223,14 @@ function AudioEditorInner({ modalProps, file, engine, defaultMode, onComplete }:
     const runExport = useCallback(async (): Promise<File> => {
         if (useFFmpeg) {
             try {
-                return await trimAudioWithFFmpeg(file, start, end, { mode, signal: signalRef.current, onProgress: setProgress });
+                return await trimAudioWithFFmpeg(file, start, end, { mode, bitrateK: bitrate, signal: signalRef.current, onProgress: setProgress });
             } catch (err) {
                 if (signalRef.current.cancelled) throw err;
                 showToast("FFmpeg unavailable — exporting offline as WAV.", Toasts.Type.MESSAGE);
             }
         }
         return trimAudioWebAudio(file, start, end);
-    }, [useFFmpeg, file, start, end, mode]);
+    }, [useFFmpeg, file, start, end, mode, bitrate]);
 
     const handleExport = useCallback(async () => {
         if (exporting) return;
@@ -287,6 +299,8 @@ function AudioEditorInner({ modalProps, file, engine, defaultMode, onComplete }:
             <div className={cl("editor")}>
                 <audio ref={audioRef} src={url} onLoadedMetadata={onLoadedMetadata} onEnded={() => setPlaying(false)} />
 
+                <LayoutSwitch value={layout} onChange={setLayout} />
+
                 <div className={cl("audio-stage")}>
                     <button
                         className={cl("audio-play", { "audio-play-on": playing })}
@@ -335,7 +349,7 @@ function AudioEditorInner({ modalProps, file, engine, defaultMode, onComplete }:
                     </div>
                 </div>
 
-                {useFFmpeg && (
+                {mod && useFFmpeg && (
                     <div className={cl("optbar")}>
                         <div className={cl("modes")}>
                             <button
@@ -353,7 +367,21 @@ function AudioEditorInner({ modalProps, file, engine, defaultMode, onComplete }:
                                 Re-encode
                             </button>
                         </div>
-                        <span />
+                        {adv && mode === "precise" ? (
+                            <div className={cl("modes")} title="Output AAC bitrate">
+                                {BITRATES.map(b => (
+                                    <button key={b} className={cl("mode", { "mode-active": bitrate === b })} onClick={() => setBitrate(b)}>
+                                        {b}k
+                                    </button>
+                                ))}
+                            </div>
+                        ) : <span />}
+                    </div>
+                )}
+
+                {mod && (srcBitrate != null) && (
+                    <div className={cl("img-info")}>
+                        Source ≈ {srcBitrate} kbps{adv && mode === "precise" ? ` · output ${bitrate} kbps AAC` : ""}
                     </div>
                 )}
 
@@ -368,45 +396,53 @@ function AudioEditorInner({ modalProps, file, engine, defaultMode, onComplete }:
                 />
 
                 <div className={cl("transport")}>
-                    <button className={cl("iconbtn")} title="Jump to selection start" onClick={() => pauseThen(start)}>
-                        <Icon d={ICONS.toStart} />
-                    </button>
+                    {mod && (
+                        <button className={cl("iconbtn")} title="Jump to selection start" onClick={() => pauseThen(start)}>
+                            <Icon d={ICONS.toStart} />
+                        </button>
+                    )}
                     <button className={cl("iconbtn", { "iconbtn-primary": true })} title={playing ? "Pause" : "Play selection"} onClick={togglePlay}>
                         <Icon d={playing ? ICONS.pause : ICONS.play} />
                     </button>
-                    <button className={cl("iconbtn")} title="Jump to selection end" onClick={() => pauseThen(end)}>
-                        <Icon d={ICONS.toEnd} />
-                    </button>
+                    {mod && (
+                        <button className={cl("iconbtn")} title="Jump to selection end" onClick={() => pauseThen(end)}>
+                            <Icon d={ICONS.toEnd} />
+                        </button>
+                    )}
                 </div>
 
-                <div className={cl("setbtns")}>
-                    <div className={cl("setgroup")}>
-                        <button className={cl("iconbtn", "iconbtn-sm")} title="Nudge start back" onClick={() => nudgeStart(-1)}>
-                            <Icon d={ICONS.chevLeft} />
-                        </button>
-                        <button className={cl("setbtn")} title="Set start to current time" onClick={setStartHere}>
-                            Set start
-                        </button>
-                        <button className={cl("iconbtn", "iconbtn-sm")} title="Nudge start forward" onClick={() => nudgeStart(1)}>
-                            <Icon d={ICONS.chevRight} />
-                        </button>
+                {mod && (
+                    <div className={cl("setbtns")}>
+                        <div className={cl("setgroup")}>
+                            <button className={cl("iconbtn", "iconbtn-sm")} title="Nudge start back" onClick={() => nudgeStart(-1)}>
+                                <Icon d={ICONS.chevLeft} />
+                            </button>
+                            <button className={cl("setbtn")} title="Set start to current time" onClick={setStartHere}>
+                                Set start
+                            </button>
+                            <button className={cl("iconbtn", "iconbtn-sm")} title="Nudge start forward" onClick={() => nudgeStart(1)}>
+                                <Icon d={ICONS.chevRight} />
+                            </button>
+                        </div>
+                        <div className={cl("setgroup")}>
+                            <button className={cl("iconbtn", "iconbtn-sm")} title="Nudge end back" onClick={() => nudgeEnd(-1)}>
+                                <Icon d={ICONS.chevLeft} />
+                            </button>
+                            <button className={cl("setbtn")} title="Set end to current time" onClick={setEndHere}>
+                                Set end
+                            </button>
+                            <button className={cl("iconbtn", "iconbtn-sm")} title="Nudge end forward" onClick={() => nudgeEnd(1)}>
+                                <Icon d={ICONS.chevRight} />
+                            </button>
+                        </div>
                     </div>
-                    <div className={cl("setgroup")}>
-                        <button className={cl("iconbtn", "iconbtn-sm")} title="Nudge end back" onClick={() => nudgeEnd(-1)}>
-                            <Icon d={ICONS.chevLeft} />
-                        </button>
-                        <button className={cl("setbtn")} title="Set end to current time" onClick={setEndHere}>
-                            Set end
-                        </button>
-                        <button className={cl("iconbtn", "iconbtn-sm")} title="Nudge end forward" onClick={() => nudgeEnd(1)}>
-                            <Icon d={ICONS.chevRight} />
-                        </button>
-                    </div>
-                </div>
+                )}
 
-                <div className={cl("hint")}>
-                    ← → 1s · Shift + ← → 5s · Space play · I / O set in/out · Home / End edges
-                </div>
+                {mod && (
+                    <div className={cl("hint")}>
+                        ← → 1s · Shift + ← → 5s · Space play · I / O set in/out · Home / End edges
+                    </div>
+                )}
             </div>
         </Modal>
     );

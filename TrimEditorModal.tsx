@@ -10,7 +10,8 @@ import type { RenderModalProps } from "@vencord/discord-types";
 import { Modal, React, showToast, Toasts, useCallback, useEffect, useMemo, useRef, useState } from "@webpack/common";
 
 import { terminateFFmpeg, TrimMode, trimWithFFmpeg } from "./ffmpeg";
-import { clamp, Engine, ExportQuality, exportTrimmedVideo, formatTimecode, qualityToCrf } from "./utils";
+import { LayoutSwitch } from "./Layout";
+import { clamp, Engine, ExportQuality, exportTrimmedVideo, formatTimecode, LayoutMode, qualityToCrf } from "./utils";
 
 const cl = classNameFactory("vc-clipify-");
 
@@ -24,9 +25,13 @@ export interface TrimEditorModalProps {
     quality: ExportQuality;
     engine: Engine;
     defaultMode: TrimMode;
+    defaultLayout: LayoutMode;
     /** Called with the finished, trimmed file once the user exports. */
     onComplete: (trimmed: File) => void;
 }
+
+const SPEEDS = [0.5, 1, 2] as const;
+const QUALITIES: ReadonlyArray<[ExportQuality, string]> = [["high", "High"], ["medium", "Medium"], ["low", "Low"]];
 
 /* ----------------------------- Timeline --------------------------------- */
 
@@ -135,7 +140,7 @@ const ICONS = {
 
 /* --------------------------- Editor modal ------------------------------- */
 
-function TrimEditorInner({ modalProps, file, defaultFps, quality, engine, defaultMode, onComplete }: TrimEditorModalProps) {
+function TrimEditorInner({ modalProps, file, defaultFps, quality: initialQuality, engine, defaultMode, defaultLayout, onComplete }: TrimEditorModalProps) {
     const url = useMemo(() => URL.createObjectURL(file), [file]);
     const videoRef = useRef<HTMLVideoElement>(null);
     const rafRef = useRef<number>(0);
@@ -151,8 +156,16 @@ function TrimEditorInner({ modalProps, file, defaultFps, quality, engine, defaul
     const [exporting, setExporting] = useState(false);
     const [progress, setProgress] = useState(0);
 
+    const [layout, setLayout] = useState<LayoutMode>(defaultLayout);
+    const [quality, setQuality] = useState<ExportQuality>(initialQuality);
+    const [speed, setSpeed] = useState(1);
+    const [muted, setMuted] = useState(false);
+    const [dims, setDims] = useState<{ w: number; h: number; } | null>(null);
+
     const frame = 1 / fps;
     const useFFmpeg = engine === "ffmpeg";
+    const mod = layout !== "simple";
+    const adv = layout === "advanced";
 
     useEffect(() => () => {
         URL.revokeObjectURL(url);
@@ -167,7 +180,16 @@ function TrimEditorInner({ modalProps, file, defaultFps, quality, engine, defaul
         setDuration(d);
         setEnd(d);
         setCurrent(0);
+        if (v.videoWidth) setDims({ w: v.videoWidth, h: v.videoHeight });
     };
+
+    // Apply advanced playback options (speed / mute) to the preview element.
+    useEffect(() => {
+        const v = videoRef.current;
+        if (!v) return;
+        v.playbackRate = speed;
+        v.muted = muted;
+    }, [speed, muted, playing]);
 
     /* Keep `current` in sync with the element while it plays, and loop the
        preview inside the [start, end] selection for a live preview. */
@@ -335,6 +357,8 @@ function TrimEditorInner({ modalProps, file, defaultFps, quality, engine, defaul
             ]}
         >
             <div className={cl("editor")}>
+                <LayoutSwitch value={layout} onChange={setLayout} />
+
                 <div className={cl("stage")}>
                     <video
                         ref={videoRef}
@@ -380,37 +404,62 @@ function TrimEditorInner({ modalProps, file, defaultFps, quality, engine, defaul
                     </div>
                 </div>
 
-                <div className={cl("optbar")}>
-                    {useFFmpeg ? (
-                        <div className={cl("modes")}>
-                            <button
-                                className={cl("mode", { "mode-active": mode === "precise" })}
-                                onClick={() => setMode("precise")}
-                                title="Cuts exactly at the chosen frame (re-encodes to mp4)"
-                            >
-                                Precise
-                            </button>
-                            <button
-                                className={cl("mode", { "mode-active": mode === "lossless" })}
-                                onClick={() => setMode("lossless")}
-                                title="Instant and lossless; the start snaps to the nearest keyframe"
-                            >
-                                Lossless
-                            </button>
-                        </div>
-                    ) : <span />}
+                {mod && (
+                    <div className={cl("optbar")}>
+                        {useFFmpeg ? (
+                            <div className={cl("modes")}>
+                                <button
+                                    className={cl("mode", { "mode-active": mode === "precise" })}
+                                    onClick={() => setMode("precise")}
+                                    title="Cuts exactly at the chosen frame (re-encodes to mp4)"
+                                >
+                                    Precise
+                                </button>
+                                <button
+                                    className={cl("mode", { "mode-active": mode === "lossless" })}
+                                    onClick={() => setMode("lossless")}
+                                    title="Instant and lossless; the start snaps to the nearest keyframe"
+                                >
+                                    Lossless
+                                </button>
+                            </div>
+                        ) : <span />}
 
-                    <label className={cl("fps")}>
-                        FPS
-                        <input
-                            type="number"
-                            min={1}
-                            max={240}
-                            value={fps}
-                            onChange={e => setFps(clamp(Number(e.target.value) || defaultFps, 1, 240))}
-                        />
-                    </label>
-                </div>
+                        <label className={cl("fps")}>
+                            FPS
+                            <input
+                                type="number"
+                                min={1}
+                                max={240}
+                                value={fps}
+                                onChange={e => setFps(clamp(Number(e.target.value) || defaultFps, 1, 240))}
+                            />
+                        </label>
+                    </div>
+                )}
+
+                {adv && (
+                    <div className={cl("img-controls")}>
+                        <div className={cl("modes")}>
+                            {QUALITIES.map(([q, label]) => (
+                                <button key={q} className={cl("mode", { "mode-active": quality === q })} onClick={() => setQuality(q)} title="Output quality">
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
+                        <div className={cl("modes")}>
+                            {SPEEDS.map(s => (
+                                <button key={s} className={cl("mode", { "mode-active": speed === s })} onClick={() => setSpeed(s)} title="Preview speed">
+                                    {s}×
+                                </button>
+                            ))}
+                        </div>
+                        <label className={cl("img-check")}>
+                            <input type="checkbox" checked={muted} onChange={e => setMuted(e.target.checked)} />
+                            Mute preview
+                        </label>
+                    </div>
+                )}
 
                 <Timeline
                     duration={duration}
@@ -423,52 +472,65 @@ function TrimEditorInner({ modalProps, file, defaultFps, quality, engine, defaul
                 />
 
                 <div className={cl("transport")}>
-                    <button className={cl("iconbtn")} title="Jump to selection start" onClick={() => pauseThen(start)}>
-                        <Icon d={ICONS.toStart} />
-                    </button>
-                    <button className={cl("iconbtn")} title="Previous frame" onClick={() => stepFrame(-1)}>
-                        <Icon d={ICONS.frameBack} />
-                    </button>
+                    {mod && (
+                        <button className={cl("iconbtn")} title="Jump to selection start" onClick={() => pauseThen(start)}>
+                            <Icon d={ICONS.toStart} />
+                        </button>
+                    )}
+                    {mod && (
+                        <button className={cl("iconbtn")} title="Previous frame" onClick={() => stepFrame(-1)}>
+                            <Icon d={ICONS.frameBack} />
+                        </button>
+                    )}
                     <button className={cl("iconbtn", { "iconbtn-primary": true })} title={playing ? "Pause" : "Play selection"} onClick={togglePlay}>
                         <Icon d={playing ? ICONS.pause : ICONS.play} />
                     </button>
-                    <button className={cl("iconbtn")} title="Next frame" onClick={() => stepFrame(1)}>
-                        <Icon d={ICONS.frameFwd} />
-                    </button>
-                    <button className={cl("iconbtn")} title="Jump to selection end" onClick={() => pauseThen(end)}>
-                        <Icon d={ICONS.toEnd} />
-                    </button>
+                    {mod && (
+                        <button className={cl("iconbtn")} title="Next frame" onClick={() => stepFrame(1)}>
+                            <Icon d={ICONS.frameFwd} />
+                        </button>
+                    )}
+                    {mod && (
+                        <button className={cl("iconbtn")} title="Jump to selection end" onClick={() => pauseThen(end)}>
+                            <Icon d={ICONS.toEnd} />
+                        </button>
+                    )}
                 </div>
 
-                <div className={cl("setbtns")}>
-                    <div className={cl("setgroup")}>
-                        <button className={cl("iconbtn", "iconbtn-sm")} title="Nudge start back 1 frame" onClick={() => nudgeStart(-1)}>
-                            <Icon d={ICONS.chevLeft} />
-                        </button>
-                        <button className={cl("setbtn")} title="Set start to current frame" onClick={setStartHere}>
-                            Set start
-                        </button>
-                        <button className={cl("iconbtn", "iconbtn-sm")} title="Nudge start forward 1 frame" onClick={() => nudgeStart(1)}>
-                            <Icon d={ICONS.chevRight} />
-                        </button>
+                {mod && (
+                    <div className={cl("setbtns")}>
+                        <div className={cl("setgroup")}>
+                            <button className={cl("iconbtn", "iconbtn-sm")} title="Nudge start back 1 frame" onClick={() => nudgeStart(-1)}>
+                                <Icon d={ICONS.chevLeft} />
+                            </button>
+                            <button className={cl("setbtn")} title="Set start to current frame" onClick={setStartHere}>
+                                Set start
+                            </button>
+                            <button className={cl("iconbtn", "iconbtn-sm")} title="Nudge start forward 1 frame" onClick={() => nudgeStart(1)}>
+                                <Icon d={ICONS.chevRight} />
+                            </button>
+                        </div>
+
+                        <div className={cl("setgroup")}>
+                            <button className={cl("iconbtn", "iconbtn-sm")} title="Nudge end back 1 frame" onClick={() => nudgeEnd(-1)}>
+                                <Icon d={ICONS.chevLeft} />
+                            </button>
+                            <button className={cl("setbtn")} title="Set end to current frame" onClick={setEndHere}>
+                                Set end
+                            </button>
+                            <button className={cl("iconbtn", "iconbtn-sm")} title="Nudge end forward 1 frame" onClick={() => nudgeEnd(1)}>
+                                <Icon d={ICONS.chevRight} />
+                            </button>
+                        </div>
                     </div>
+                )}
 
-                    <div className={cl("setgroup")}>
-                        <button className={cl("iconbtn", "iconbtn-sm")} title="Nudge end back 1 frame" onClick={() => nudgeEnd(-1)}>
-                            <Icon d={ICONS.chevLeft} />
-                        </button>
-                        <button className={cl("setbtn")} title="Set end to current frame" onClick={setEndHere}>
-                            Set end
-                        </button>
-                        <button className={cl("iconbtn", "iconbtn-sm")} title="Nudge end forward 1 frame" onClick={() => nudgeEnd(1)}>
-                            <Icon d={ICONS.chevRight} />
-                        </button>
+                {mod && (
+                    <div className={cl("hint")}>
+                        ← → frame · Shift + ← → jump 10 · Space play · I / O set in/out · Home / End edges
+                        {adv && dims ? ` · source ${dims.w}×${dims.h}` : ""}
                     </div>
-                </div>
-
-                <div className={cl("hint")}>
-                    ← → frame · Shift + ← → jump 10 · Space play · I / O set in/out · Home / End edges
-                </div>
+                )}
             </div>
         </Modal>
     );

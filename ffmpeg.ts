@@ -164,6 +164,8 @@ export async function trimWithFFmpeg(
 export interface FfmpegAudioTrimOptions {
     /** "precise" re-encodes to AAC/m4a; "lossless" stream-copies the source. */
     mode: TrimMode;
+    /** Output AAC bitrate in kbps for "precise" mode (default 192). */
+    bitrateK?: number;
     onProgress?: (fraction: number) => void;
     signal?: { cancelled: boolean; };
 }
@@ -207,7 +209,7 @@ export async function trimAudioWithFFmpeg(
             "-t", String(duration),
             "-vn",
             "-c:a", "aac",
-            "-b:a", "192k",
+            "-b:a", `${Math.round(options.bitrateK ?? 192)}k`,
             "-movflags", "+faststart",
             output
         ];
