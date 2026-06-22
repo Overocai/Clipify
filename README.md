@@ -37,10 +37,28 @@ Everything runs **locally in your client**. Your media is never uploaded to any 
   - **Crop** — drag a selection box; everything outside it is dimmed.
   - **Resize** — set width / height with an optional aspect-ratio lock.
   - **Censor** — hide faces, text or anything sensitive with **blur** or **pixelate (mosaic)**. Draw **boxes** or free-hand **paint with the brush**, with sliders for intensity and brush size, plus undo / clear.
-- **🧰 Three layout modes** — a **Simple / Moderate / Advanced** switch in every editor reveals progressively more controls. Advanced unlocks the power-user tools: color grading, crop/zoom, audio boost, playback speed & mute (video); output bitrate & boost (audio); output format, quality & scale presets (images). Set the default in settings.
+- **🧰 Three layout modes** — a **Simple / Moderate / Advanced** switch in every editor reveals progressively more controls, from the bare essentials up to the power-user effects. See [Layout modes](#layout-modes) for the full breakdown.
 - **⏯️ Cancellable exports** with live progress.
 - **🔒 Local-only & private** — no telemetry, no uploads. Images are edited purely on a canvas; the only network request is a one-time fetch of the FFmpeg core (see [notes](#notes--privacy)).
 - **🎚️ Per-type opt-in** — audio and image interception can each be toggled off in settings.
+
+## Layout modes
+
+Every editor has a **Simple / Moderate / Advanced** switch at the top (the default is set in settings, but you can change it live per session). Each step up reveals more controls without changing what you already set — they're purely about how much is on screen.
+
+- **Simple** — just the essentials to get the job done fast.
+- **Moderate** — the standard toolset (the default).
+- **Advanced** — everything, plus the power-user effects.
+
+What each mode shows, per editor:
+
+| Editor | Simple | Moderate *(adds)* | Advanced *(adds)* |
+| --- | --- | --- | --- |
+| **🎬 Video** | Timeline, play, trim & send | Frame-by-frame nav, set in/out points, FPS, Precise/Lossless mode | Output quality, **speed 0.25×–10×**, mute preview, **color grading** (saturation/contrast/brightness), **crop / zoom**, **audio boost** |
+| **🎵 Audio** | Timeline, play, trim & send | Lossless/Re-encode mode, set in/out points, source **bitrate (kbps)** | Output AAC **bitrate** picker, **audio boost** (gain) |
+| **🖼️ Image** | Crop, resize (W/H + lock), censor with **blur boxes** + intensity | **Pixelate** style, **brush** painting + brush size, undo | Output **format** (PNG/JPEG/WebP) + **quality**, resize **scale presets** (25/50/100%) |
+
+> Advanced effects on video/audio (color grading, crop, boost, speed) re-encode through FFmpeg automatically — they can't be applied to a lossless stream copy.
 
 ## Video engines
 
