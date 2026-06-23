@@ -745,3 +745,148 @@
     color: var(--text-muted);
     font-variant-numeric: tabular-nums;
 }
+
+/* ========================================================================== */
+/*                               Polish layer                                 */
+/* Depth, motion and focus states layered on top of the base styles to give   */
+/* every editor a more refined, native-feeling finish.                        */
+/* ========================================================================== */
+
+/* Editor content gently rises in when a modal opens. */
+@keyframes vc-clipify-rise {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: none; }
+}
+
+.vc-clipify-editor,
+.vc-clipify-choice {
+    animation: vc-clipify-rise 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Cards pick up a hint of elevation so they read as distinct surfaces. */
+.vc-clipify-optbar,
+.vc-clipify-img-controls,
+.vc-clipify-readout {
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+
+/* Segmented controls: inset frame + animated, glossier active pill. */
+.vc-clipify-modes,
+.vc-clipify-setgroup,
+.vc-clipify-tools {
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.16);
+}
+
+.vc-clipify-mode,
+.vc-clipify-tool {
+    transition: background-color 130ms ease, color 130ms ease, transform 90ms ease;
+}
+
+.vc-clipify-mode-active,
+.vc-clipify-tool-active {
+    background: linear-gradient(180deg, var(--brand-experiment, var(--brand-500, #5865f2)), var(--brand-experiment-560, var(--brand-560, #4752c4)));
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.vc-clipify-mode:active,
+.vc-clipify-tool:active {
+    transform: scale(0.96);
+}
+
+/* Slider: lively thumb with hover/active feedback and a focus ring. */
+.vc-clipify-slider input[type="range"]::-webkit-slider-thumb {
+    transition: transform 90ms ease, box-shadow 120ms ease;
+}
+
+.vc-clipify-slider input[type="range"]:hover::-webkit-slider-thumb {
+    transform: scale(1.18);
+}
+
+.vc-clipify-slider input[type="range"]:active::-webkit-slider-thumb {
+    transform: scale(1.06);
+}
+
+.vc-clipify-slider input[type="range"]:focus-visible {
+    outline: none;
+}
+
+.vc-clipify-slider input[type="range"]:focus-visible::-webkit-slider-thumb {
+    box-shadow: 0 0 0 4px rgba(88, 101, 242, 0.35);
+}
+
+/* Timeline: inset track + a soft glow around the handle on hover/drag. */
+.vc-clipify-timeline-track {
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+.vc-clipify-timeline-handle:hover,
+.vc-clipify-handle-active {
+    box-shadow: 0 0 0 6px rgba(88, 101, 242, 0.22), var(--elevation-medium, 0 2px 6px rgba(0, 0, 0, 0.4));
+}
+
+/* Set buttons lift slightly on hover. */
+.vc-clipify-setbtn {
+    transition: background-color 120ms ease, transform 90ms ease;
+}
+
+.vc-clipify-setbtn:hover:not(:disabled) {
+    transform: translateY(-1px);
+}
+
+/* Number / text inputs get a blurple focus ring. */
+.vc-clipify-fps input:focus {
+    border-color: var(--brand-experiment, var(--brand-500, #5865f2));
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(88, 101, 242, 0.25);
+}
+
+/* Audio play button: glow ring, hover scale, and a pulse while playing. */
+.vc-clipify-audio-play {
+    box-shadow: 0 6px 18px rgba(88, 101, 242, 0.35);
+}
+
+.vc-clipify-audio-play:hover {
+    transform: scale(1.06);
+}
+
+@keyframes vc-clipify-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(88, 101, 242, 0.45); }
+    70% { box-shadow: 0 0 0 14px rgba(88, 101, 242, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(88, 101, 242, 0); }
+}
+
+.vc-clipify-audio-play-on {
+    animation: vc-clipify-pulse 1.8s ease-out infinite;
+}
+
+/* Stage gets a crisp inner ring for contrast against the modal. */
+.vc-clipify-stage,
+.vc-clipify-img-stage {
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+/* Censor delete button pops on hover. */
+.vc-clipify-region-del {
+    transition: transform 90ms ease, filter 120ms ease;
+}
+
+.vc-clipify-region-del:hover {
+    transform: scale(1.12);
+}
+
+/* Honour reduced-motion preferences. */
+@media (prefers-reduced-motion: reduce) {
+    .vc-clipify-editor,
+    .vc-clipify-choice,
+    .vc-clipify-audio-play-on {
+        animation: none;
+    }
+
+    .vc-clipify-mode,
+    .vc-clipify-tool,
+    .vc-clipify-setbtn,
+    .vc-clipify-audio-play,
+    .vc-clipify-slider input[type="range"]::-webkit-slider-thumb {
+        transition: none;
+    }
+}
